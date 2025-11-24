@@ -15,10 +15,6 @@ class PublicMetadataProxy:
         self.chmap = dummy.channelmap
         self.diodes = _DiodeProxy(dummy)
 
-    def update_special_metadata(self, special_metadata) -> None:
-        # the string is shorter because of missing special detectors.
-        special_metadata.hpge_string["7"].minishroud_delta_length_in_mm = -200
-
 
 class _DiodeProxy:
     def __init__(self, dummy_detectors: TextDB):

@@ -37,3 +37,10 @@ In the simplest case, you can create a usable geometry file with:
 ```
 $ legend-pygeom-hades hades.gdml
 ```
+
+```{toctree}
+:maxdepth: 1
+:caption: Development
+
+Package API reference <api/modules>
+```

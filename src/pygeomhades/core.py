@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import logging
 
+import dbetto
 from git import GitCommandError
 from legendmeta import LegendMetadata
 from pyg4ometry import geant4
@@ -11,10 +12,32 @@ log = logging.getLogger(__name__)
 
 
 def construct(
-    config: dict | None = None,
+    config: str | dict | None = None,
     public_geometry: bool = False,
 ) -> geant4.Registry:
-    """Construct the LEGEND-200 geometry and return the pyg4ometry Registry containing the world volume."""
+    """Construct the HADES geometry and return the registry containing the world volume.
+
+    Parameters
+    ----------
+    config
+      configuration dictionary (or file containing it) defining relevant
+      parameters of the geometry.
+
+      .. code-block:: yaml
+
+        detector: V07302A
+        measurement: am_HS1_top_dlt
+        source_position:
+          phi_in_deg: 0.0
+          r_in_mm: 86.0
+          z_in_mm: 3.0
+    public_geometry
+      if true, uses the public geometry metadata instead of the LEGEND-internal
+      legend-metadata.
+    """
+    if isinstance(config, str):
+        config = dbetto.utils.load_dict(config)
+
     lmeta = None
     if not public_geometry:
         with contextlib.suppress(GitCommandError):
