@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import numpy as np
-from pyg4ometry import geant4
+from pyg4ometry import gdml, geant4
 
 from pygeomhades import fixed_dimensions as dim
 from pygeomhades.utils import _read_gdml_model
@@ -40,10 +43,29 @@ def create_detector(from_gdml: bool = False) -> geant4.LogicalVolume:
     return detector_lv
 
 
-def create_wrap(from_gdml: bool = False) -> geant4.LogicalVolume:
+def create_wrap(detector_meta: dict, from_gdml: bool = False) -> geant4.LogicalVolume:
+    wrap = detector_meta["hades"]["dimensions"]["wrap"]["geometry"]
     if from_gdml:
-        reg_wrap = _read_gdml_model("wrap.gdml")
-        wrap_lv = reg_wrap.getWorldVolume()
+        dummy_gdml_path = Path(__file__).parent / "models/dummy/wrap_dummy.gdml"
+        replacements = {
+            "wrap_outer_height_in_mm": wrap["outer"]["height_in_mm"],
+            "wrap_outer_radius_in_mm": wrap["outer"]["radius_in_mm"],
+            "wrap_inner_radius_in_mm": wrap["inner"]["radius_in_mm"],
+            "wrap_top_thickness_in_mm": wrap["outer"]["height_in_mm"] - wrap["inner"]["height_in_mm"],
+        }
+
+        gdml_text = dummy_gdml_path.read_text()
+
+        for key, val in replacements.items():
+            gdml_text = gdml_text.replace(key, f"{val:.{1}f}")
+
+        with tempfile.NamedTemporaryFile("w+", suffix=".gdml") as f:
+            f.write(gdml_text)
+            f.flush()
+            reader = gdml.Reader(f.name)
+            registry = reader.getRegistry()
+
+        wrap_lv = registry.getWorldVolume()
     else:
         # TODO: add the construction of geometry
         msg = "cannot construct geometry without the gdml for now"
@@ -51,10 +73,60 @@ def create_wrap(from_gdml: bool = False) -> geant4.LogicalVolume:
     return wrap_lv
 
 
-def create_holder(from_gdml: bool = False) -> geant4.LogicalVolume:
+def create_holder(detector_meta: dict, from_gdml: bool = False) -> geant4.LogicalVolume:
     if from_gdml:
-        reg_holder = _read_gdml_model("holder.gdml")
-        holder_lv = reg_holder.getWorldVolume()
+        holder = detector_meta["hades"]["dimensions"]["holder"]["geometry"]
+        if detector_meta["type"] == "icpc":
+            dummy_gdml_path = Path(__file__).parent / "models/dummy/holder_icpc_dummy.gdml"
+            replacements = {
+                "max_radius_in_mm": holder["rings"]["radius_in_mm"],
+                "outer_height_in_mm": holder["cylinder"]["outer"]["height_in_mm"],
+                "inner_height_in_mm": holder["cylinder"]["inner"]["height_in_mm"],
+                "outer_radius_in_mm": holder["cylinder"]["outer"]["radius_in_mm"],
+                "inner_radius_in_mm": holder["cylinder"]["inner"]["radius_in_mm"],
+                "bottom_cyl_outer_radius_in_mm": holder["bottom_cyl"]["outer"]["radius_in_mm"],
+                "bottom_cyl_inner_radius_in_mm": holder["bottom_cyl"]["inner"]["radius_in_mm"],
+                "edge_height_in_mm": holder["edge"]["height_in_mm"],
+                "pos_top_ring_in_mm": holder["rings"]["position_top_ring_in_mm"],
+                "pos_bottom_ring_in_mm": holder["rings"]["position_bottom_ring_in_mm"],
+                "end_top_ring_in_mm": holder["rings"]["position_top_ring_in_mm"]
+                + holder["rings"]["height_in_mm"],
+                "end_bottom_ring_in_mm": holder["rings"]["position_bottom_ring_in_mm"]
+                + holder["rings"]["height_in_mm"],
+                "end_bottom_cyl_outer_in_mm": holder["cylinder"]["outer"]["height_in_mm"]
+                + holder["bottom_cyl"]["outer"]["height_in_mm"],
+                "end_bottom_cyl_inner_in_mm": holder["cylinder"]["outer"]["height_in_mm"]
+                + holder["bottom_cyl"]["inner"]["height_in_mm"],
+            }
+        elif detector_meta["type"] == "bege":
+            dummy_gdml_path = Path(__file__).parent / "models/dummy/holder_bege_dummy.gdml"
+            replacements = {
+                "max_radius_in_mm": holder["rings"]["radius_in_mm"],
+                "outer_height_in_mm": holder["cylinder"]["outer"]["height_in_mm"],
+                "inner_height_in_mm": holder["cylinder"]["inner"]["height_in_mm"],
+                "outer_radius_in_mm": holder["cylinder"]["outer"]["radius_in_mm"],
+                "inner_radius_in_mm": holder["cylinder"]["inner"]["radius_in_mm"],
+                "position_top_ring_in_mm": holder["rings"]["position_top_ring_in_mm"],
+                "end_top_ring_in_mm": holder["rings"]["height_in_mm"]
+                + holder["rings"]["position_top_ring_in_mm"],
+            }
+        else:
+            msg = "cannot construct geometry for coax or ppc"
+            raise RuntimeError(msg)
+
+        gdml_text = dummy_gdml_path.read_text()
+
+        for key, val in replacements.items():
+            gdml_text = gdml_text.replace(key, f"{val:.{1}f}")
+
+        with tempfile.NamedTemporaryFile("w+", suffix=".gdml") as f:
+            f.write(gdml_text)
+            f.flush()
+            reader = gdml.Reader(f.name)
+            registry = reader.getRegistry()
+
+        holder_lv = registry.getWorldVolume()
+
     else:
         # TODO: add the construction of geometry
         msg = "cannot construct geometry without the gdml for now"
