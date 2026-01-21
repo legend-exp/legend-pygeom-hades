@@ -19,9 +19,11 @@ from pygeomhades.create_volumes import (
     create_lead_castle,
     create_source,
     create_source_holder,
+    create_th_plate,
     create_vacuum_cavity,
     create_wrap,
 )
+from pygeomhades.metadata import PublicMetadataProxy
 
 log = logging.getLogger(__name__)
 
@@ -30,14 +32,14 @@ DEFAULT_DIMENSIONS = TextDB(resources.files("pygeomhades") / "configs" / "holder
 # TODO: Could the user want to remove sections of the geometry?
 DEFAULT_ASSEMBLIES = {
     "vacuum_cavity",
-    "bottom_plate",
-    "lead_castle",
-    "cryostat",
-    "holder",
-    "wrap",
+    # "bottom_plate",
+    # "lead_castle",
+    # "cryostat",
+    # "holder",
+    # "wrap",
     "detector",
-    # "source",
-    # "source_holder"
+    "source",
+    "source_holder",
 }
 
 
@@ -86,18 +88,24 @@ def construct(
     if not public_geometry:
         with contextlib.suppress(GitCommandError):
             lmeta = LegendMetadata(lazy=True)
+
     # require user action to construct a testdata-only geometry (i.e. to avoid accidental creation of "wrong"
     # geometries by LEGEND members).
     if lmeta is None and not public_geometry:
         msg = "cannot construct geometry from public testdata only, if not explicitly instructed"
         raise RuntimeError(msg)
+
     if lmeta is None:
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
-        # TODO: use this public metadata proxy
-        # dummy_geom = PublicMetadataProxy()
+        lmeta = PublicMetadataProxy()
 
-    if config is None:
-        config = {"hpge_name": "V03421A", "lead_castle": 1}
+    if config is None or config == {}:
+        config = {
+            "hpge_name": "V07302A",
+            "lead_castle": 1,
+            "source": "am_collimated",
+            "measurement_type": "top",
+        }
 
     hpge_name = config["hpge_name"]
     hpge_meta = merge_configs(hpge_name, lmeta, dimensions)
@@ -115,7 +123,7 @@ def construct(
         cavity_lv = create_vacuum_cavity(reg)
         geant4.PhysicalVolume(
             [0, 0, 0],
-            [0, 0, dim.CRYOSTAT["position_cavity_from_top"], "mm"],
+            [0, 0, dim.cryostat["position_cavity_from_top"], "mm"],
             cavity_lv,
             "cavity_pv",
             world_lv,
@@ -126,7 +134,7 @@ def construct(
             wrap_lv = create_wrap(hpge_meta, from_gdml=True)
             geant4.PhysicalVolume(
                 [0, 0, 0],
-                [0, 0, dim.POSITIONS_FROM_CRYOSTAT["wrap"] - dim.CRYOSTAT["position_cavity_from_top"], "mm"],
+                [0, 0, dim.positions_from_cryostat["wrap"] - dim.cryostat["position_cavity_from_top"], "mm"],
                 wrap_lv,
                 "wrap_pv",
                 cavity_lv,
@@ -140,7 +148,7 @@ def construct(
                 [
                     0,
                     0,
-                    dim.POSITIONS_FROM_CRYOSTAT["holder"] - dim.CRYOSTAT["position_cavity_from_top"],
+                    dim.positions_from_cryostat["holder"] - dim.cryostat["position_cavity_from_top"],
                     "mm",
                 ],
                 holder_lv,
@@ -156,7 +164,7 @@ def construct(
                 [
                     0,
                     0,
-                    (dim.POSITIONS_FROM_CRYOSTAT["detector"] - dim.CRYOSTAT["position_cavity_from_top"]),
+                    (dim.positions_from_cryostat["detector"] - dim.cryostat["position_cavity_from_top"]),
                     "mm",
                 ],
                 detector_lv,
@@ -169,7 +177,7 @@ def construct(
         plate_lv = create_bottom_plate(from_gdml=True)
         geant4.PhysicalVolume(
             [0, 0, 0],
-            [0, 0, dim.CRYOSTAT["position_cavity_from_bottom"] + (dim.BOTTOM_PLATE["height"]) / 2, "mm"],
+            [0, 0, dim.cryostat["position_from_bottom"] + (dim.bottom_plate["height"]) / 2, "mm"],
             plate_lv,
             "plate_pv",
             world_lv,
@@ -180,7 +188,7 @@ def construct(
         castle_lv = create_lead_castle(config["lead_castle"], from_gdml=True)
         geant4.PhysicalVolume(
             [0, 0, 0],
-            [0, 0, dim.CRYOSTAT["position_cavity_from_bottom"] - (dim.LEAD_CASTLE["base_height"]) / 2, "mm"],
+            [0, 0, dim.cryostat["position_from_bottom"] - (dim.lead_castle["base_height"]) / 2, "mm"],
             castle_lv,
             "castle_pv",
             world_lv,
@@ -188,24 +196,38 @@ def construct(
         )
 
     if "source" in assemblies:
-        source_lv = create_source(from_gdml=True)
+        source_lv = create_source(config, from_gdml=True)
         geant4.PhysicalVolume(
             [0, 0, 0],
-            [0, 0, -dim.POSITIONS_FROM_CRYOSTAT["source"]["z"], "mm"],
+            [0, 0, -dim.positions_from_cryostat["source"]["z"], "mm"],
             source_lv,
             "source_pv",
             world_lv,
             registry=reg,
         )
 
+        if config["source"] == "tl":
+            th_plate_lv = create_th_plate(from_gdml=True)
+            geant4.PhysicalVolume(
+                [0, 0, 0],
+                [0, 0, 0, "mm"],
+                th_plate_lv,
+                "th_plate_pv",
+                world_lv,
+                registry=reg,
+            )
+
     if "source_holder" in assemblies:
-        s_holder_lv = create_source_holder(from_gdml=True)
+        s_holder_lv = create_source_holder(config, from_gdml=True)
         geant4.PhysicalVolume(
             [0, 0, 0],
             [
                 0,
                 0,
-                -(dim.POSITIONS_FROM_CRYOSTAT["source"]["z"] + dim.SOURCE_HOLDER["top_plate_height"] / 2),
+                -(
+                    dim.positions_from_cryostat["source"]["z"]
+                    + dim.source_holder["top"]["top_plate_height"] / 2
+                ),  # TODO: this will break so we need to change it
                 "mm",
             ],
             s_holder_lv,
@@ -215,10 +237,10 @@ def construct(
         )
 
     if "cryostat" in assemblies:
-        cryo_lv = create_cryostat(hpge_meta, from_gdml=True)
+        cryo_lv = create_cryostat(from_gdml=True)
         geant4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], cryo_lv, "cryo_pv", world_lv, registry=reg)
 
-    v = visualisation.VtkViewer()
+    v = visualisation.VtkViewerColoured(defaultColour="random")
     v.addLogicalVolume(reg.getWorldVolume())
     v.view()
 
