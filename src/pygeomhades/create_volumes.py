@@ -1,52 +1,21 @@
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import numpy as np
-from pyg4ometry import gdml, geant4
+from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
 from pygeomhades import dimensions as dim
-
-# TODO: These functions seem very repetitive, maybe there is a way to reduce
-#      but maybe when/if we move away from loading gdml files this will not be true
-
-
-def write_gdml(reg: gdml.Registry, gdml_file_name: str | Path) -> None:
-    w = gdml.Writer()
-    w.addDetector(reg)
-    w.write(gdml_file_name)
-
-
-def amend_gdml(
-    dummy_gdml_path: Path,
-    replacements: dict,
-    write_file: bool = False,
-    gdml_file_name: str | Path = "test.gdml",
-) -> geant4.Registry:
-    gdml_text = dummy_gdml_path.read_text()
-
-    for key, val in replacements.items():
-        gdml_text = gdml_text.replace(key, f"{val:.{1}f}")
-
-    with tempfile.NamedTemporaryFile("w+", suffix=".gdml") as f:
-        f.write(gdml_text)
-        f.flush()
-        reader = gdml.Reader(f.name)
-
-        if write_file:
-            write_gdml(reader.getRegistry(), gdml_file_name)
-
-        return reader.getRegistry()
+from pygeomhades.utils import amend_gdml
 
 
 def create_vacuum_cavity(reg: geant4.Registry) -> geant4.LogicalVolume:
-    vacuum_cavity_radius = (dim.CRYOSTAT["width"] - 2 * dim.CRYOSTAT["thickness"]) / 2
+    vacuum_cavity_radius = (dim.cryostat["width"] - 2 * dim.cryostat["thickness"]) / 2
     vacuum_cavity_z = (
-        dim.CRYOSTAT["height"]
-        - dim.CRYOSTAT["position_cavity_from_top"]
-        - dim.CRYOSTAT["position_cavity_from_bottom"]
+        dim.cryostat["height"]
+        - dim.cryostat["position_cavity_from_top"]
+        - dim.cryostat["position_cavity_from_bottom"]
     )
     cavity_material = geant4.MaterialPredefined("G4_Galactic")
     vacuum_cavity = geant4.solid.GenericPolycone(
@@ -206,8 +175,8 @@ def create_lead_castle(table_num: int, from_gdml: bool = False) -> geant4.Logica
 
 def create_source(config: dict, from_gdml: bool = False) -> geant4.LogicalVolume:
     if from_gdml:
-        source = dim.SOURCE
-        source_holder = dim.SOURCE_HOLDER
+        source = dim.source
+        source_holder = dim.source_holder
         if config["source"] == "am_collimated":
             dummy_gdml_path = Path(__file__).parent / "models/dummy/source_am_collimated_dummy.gdml"
             replacements = {
@@ -271,7 +240,7 @@ def create_source(config: dict, from_gdml: bool = False) -> geant4.LogicalVolume
 def create_th_plate(from_gdml: bool = False) -> geant4.LogicalVolume:
     if from_gdml:
         dummy_gdml_path = Path(__file__).parent / "models/dummy/source_th_plates_dummy.gdml"
-        source = dim.SOURCE
+        source = dim.source
         replacements = {
             "source_plates_height": source["plates"]["height"],
             "source_plates_width": source["plates"]["width"],
@@ -287,7 +256,7 @@ def create_th_plate(from_gdml: bool = False) -> geant4.LogicalVolume:
 
 def create_source_holder(config: dict, from_gdml: bool = False) -> geant4.LogicalVolume:
     if from_gdml:
-        source_holder = dim.SOURCE_HOLDER
+        source_holder = dim.source_holder
         if config["source"] == "th" and config["measurement_type"] == "lat":
             dummy_gdml_path = Path(__file__).parent / "models/dummy/source_holder_th_lat_dummy.gdml"
             replacements = {
@@ -308,13 +277,13 @@ def create_source_holder(config: dict, from_gdml: bool = False) -> geant4.Logica
                 "source_holder_inner_width": source_holder["inner_width"],
                 "source_holder_bottom_inner_width": source_holder["top"]["bottom_inner_width"],
                 "source_holder_outer_width": source_holder["outer_width"],
-                "position_source_fromcryostat_z": dim.POSITIONS_FROM_CRYOSTAT["source"]["z"],
+                "position_source_fromcryostat_z": dim.positions_from_cryostat["source"]["z"],
             }
         elif config["source"] == "am":
             dummy_gdml_path = Path(__file__).parent / "models/dummy/source_holder_am_dummy.gdml"
             replacements = {
                 "source_holder_top_height": source_holder["am"]["top_height"],
-                "position_source_fromcryostat_z": dim.POSITIONS_FROM_CRYOSTAT["source"]["z"],
+                "position_source_fromcryostat_z": dim.positions_from_cryostat["source"]["z"],
                 "source_holder_top_plate_height": source_holder["am"]["top_plate_height"],
                 "source_holder_top_plate_width": source_holder["am"]["top_plate_width"],
                 "source_holder_top_plate_depth": source_holder["am"]["top_plate_depth"],
@@ -339,7 +308,7 @@ def create_source_holder(config: dict, from_gdml: bool = False) -> geant4.Logica
 def create_cryostat(from_gdml: bool = False) -> geant4.LogicalVolume:
     if from_gdml:
         dummy_gdml_path = Path(__file__).parent / "models/dummy/cryostat_dummy.gdml"
-        cryostat = dim.CRYOSTAT
+        cryostat = dim.cryostat
         replacements = {
             "cryostat_height": cryostat["height"],
             "cryostat_width": cryostat["width"],

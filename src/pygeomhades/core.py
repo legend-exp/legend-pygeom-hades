@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from collections.abc import Mapping
 from importlib import resources
 
 import dbetto
@@ -24,12 +25,12 @@ from pygeomhades.create_volumes import (
     create_wrap,
 )
 from pygeomhades.metadata import PublicMetadataProxy
+from pygeomhades.utils import merge_configs
 
 log = logging.getLogger(__name__)
 
 DEFAULT_DIMENSIONS = TextDB(resources.files("pygeomhades") / "configs" / "holder_wrap")
 
-# TODO: Could the user want to remove sections of the geometry?
 DEFAULT_ASSEMBLIES = {
     "vacuum_cavity",
     # "bottom_plate",
@@ -43,21 +44,10 @@ DEFAULT_ASSEMBLIES = {
 }
 
 
-def merge_configs(ged_name: str, lmeta, config) -> dict:
-    ged_diode_meta = lmeta.hardware.detectors.germanium.diodes[ged_name]
-    # make sure there is an enrichment value
-    if ged_diode_meta["production"]["enrichment"]["val"] is None:
-        ged_diode_meta["production"]["enrichment"]["val"] = 0.9  # reasonable value
-    ged_hades_config = config[ged_name]
-    ged_diode_meta.update({"hades": {"dimensions": ged_hades_config}})
-
-    return ged_diode_meta
-
-
 def construct(
     assemblies: list[str] | set[str] = DEFAULT_ASSEMBLIES,
-    dimensions: dict = DEFAULT_DIMENSIONS,
-    config: str | dict | None = None,
+    dimensions: Mapping = DEFAULT_DIMENSIONS,
+    config: str | Mapping | None = None,
     public_geometry: bool = False,
 ) -> geant4.Registry:
     """Construct the HADES geometry and return the registry containing the world volume.
@@ -108,7 +98,8 @@ def construct(
         }
 
     hpge_name = config["hpge_name"]
-    hpge_meta = merge_configs(hpge_name, lmeta, dimensions)
+    diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
+    hpge_meta = merge_configs(diode_meta, {"hades": {"dimensions": dimensions}})
     dim.update_dims(hpge_meta, config)
 
     reg = geant4.Registry()
