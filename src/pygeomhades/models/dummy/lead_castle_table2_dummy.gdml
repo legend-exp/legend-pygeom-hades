@@ -1,0 +1,73 @@
+<?xml version="1.0" ?>
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+	<define>
+		<quantity name="base_x_2" type="length" value="base_width_2" unit="mm" />
+		<quantity name="base_y_2" type="length" value="base_depth_2" unit="mm"/>
+		<quantity name="base_z_2" type="length" value="base_height_2" unit="mm"/>
+		<quantity name="inner_cavity_x_2" type="length" value="inner_cavity_width_2" unit="mm"/>
+		<quantity name="inner_cavity_y_2" type="length" value="inner_cavity_depth_2" unit="mm"/>
+		<quantity name="inner_cavity_z_2" type="length" value="inner_cavity_height_2" unit="mm"/>
+		<quantity name="top_x_2" type="length" value="top_width_2" unit="mm"/>
+		<quantity name="top_y_2" type="length" value="top_depth_2" unit="mm"/>
+		<quantity name="top_z_2" type="length" value="top_height_2" unit="mm"/>
+		<quantity name="copper_plate_x" type="length" value="copper_plate_width" unit="mm"/>
+		<quantity name="copper_plate_y" type="length" value="copper_plate_depth" unit="mm"/>
+		<quantity name="copper_plate_z" type="length" value="copper_plate_height" unit="mm"/>
+		<position name="center" x="0" y="0" z="0" />
+		<position name="pos_top" z="-((base_z_2+top_z_2)/2+copper_plate_z)" />
+		<position name="pos_copper_plate" z="-(base_z_2+copper_plate_z)/2" />
+	</define>
+
+	<solids>
+		<box name="base_lead_castle_2" x="base_x_2" y="base_y_2" z="base_z_2"/>
+		<box name="inner_cavity_lead_castle_2" x="inner_cavity_x_2" y="inner_cavity_y_2" z="inner_cavity_z_2"/>
+		<box name="top_lead_castle_2" x="top_x_2" y="top_y_2" z="top_z_2"/>
+		<box name="copper_plate" x="copper_plate_x" y="copper_plate_y" z="copper_plate_z"/>
+		<subtraction name="base_cavity_2" >
+			<first ref="base_lead_castle_2"/> <second ref="inner_cavity_lead_castle_2"/>
+			<positionref ref="center" />
+		</subtraction>
+		<union name="final_lead_castle_2" >
+			<first ref="base_cavity_2"/> <second ref="top_lead_castle_2"/>
+			<positionref ref="pos_top" />
+		</union>
+	</solids>
+
+	<materials>
+		<element Z="29" formula="Cu" name="Copper" >
+            <atom value="63.546" />
+        </element>
+		<element Z="82" formula="Pb" name="Lead" >
+            <atom value="207.2" />
+        </element>
+		<material name="metalCu" >
+        	<D value="8.960" unit="g/cm3" />
+        	<fraction n="1." ref="Copper" />
+    	</material>
+		<material name="metalPb" >
+            <D value="11.340" unit="g/cm3" />
+            <fraction n="1." ref="Lead" />
+        </material>
+	</materials>
+
+	<structure>
+		<volume name="Copper_plate">
+			<materialref ref="metalCu"/>
+			<solidref ref="copper_plate"/>
+		</volume>
+		<volume name="Lead_castle">
+			<materialref ref="metalPb"/>
+			<solidref ref="final_lead_castle_2"/>
+			<physvol>
+				<volumeref ref="Copper_plate" />
+				<positionref ref="pos_copper_plate"/>
+			</physvol>
+		</volume>
+	</structure>
+
+	<setup name="Default" version="1.0">
+		<world ref="Lead_castle"/>
+	</setup>
+
+</gdml>

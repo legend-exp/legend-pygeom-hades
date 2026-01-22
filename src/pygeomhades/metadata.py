@@ -13,7 +13,7 @@ class PublicMetadataProxy:
         dummy = TextDB(resources.files("pygeomhades") / "configs" / "dummy_geom")
 
         self.chmap = dummy.channelmap
-        self.diodes = _DiodeProxy(dummy)
+        self.hardware = AttrsDict({"detectors": {"germanium": {"diodes": _DiodeProxy(dummy)}}})
 
 
 class _DiodeProxy:
@@ -24,4 +24,6 @@ class _DiodeProxy:
         det = self.dummy_detectors[det_name[0] + "99000A"]
         m = copy.copy(det)
         m.name = det_name
+        m.production.order = 0
+        m.production.slice = "A"
         return m

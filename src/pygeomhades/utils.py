@@ -1,37 +1,65 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Container
-from importlib import resources
+import tempfile
+from collections.abc import Mapping
+from pathlib import Path
 
-import pyg4ometry
-from pyg4ometry import geant4
-
-from . import core
+from dbetto import AttrsDict
+from pyg4ometry import gdml, geant4
 
 log = logging.getLogger(__name__)
 
 
-def _read_model(
-    file: str, name: str, material: geant4.Material, b: core.InstrumentationData
-) -> geant4.LogicalVolume | None:
+def merge_configs(diode_meta: AttrsDict, extra_meta: Mapping, *, extra_name: str = "hades") -> AttrsDict:
+    """Merge the configs from `lmeta` to the extra information
+    provided in `config`.
+
+    This also adds the needed `enrichment` value if this is not present.
+
+    Parameters
+    ----------
+    diode_meta
+        The standard metadata for the diode.
+    extra_meta
+        Extra metadata to add.
+    extra_name
+        name of the subdictionary to add the extra metadata to.
     """
-    Construct a logical volume for an STL mesh.
+    # make sure there is an enrichment value
+    if diode_meta["production"]["enrichment"]["val"] is None:
+        diode_meta["production"]["enrichment"]["val"] = 0.9  # reasonable value
 
-    .. note::
-        This function honours the ``no_meshes`` runtime configuration, which can either be ``True``
-        to disable all meshes, or be a list of logical volume names to disable mesh loading.
+    diode_meta[extra_name] = extra_meta
 
-    Returns
-    -------
-    A :class:`geant4.LogicalVolume` for the mesh or ``None``, if loading of this mesh is disabled.
+    return diode_meta
+
+
+def read_gdml_with_replacements(
+    dummy_gdml_path: Path, replacements: Mapping, vol_name: str | None = None
+) -> geant4.LogicalVolume | dict[str, geant4.LogicalVolume]:
+    """Read a GDML file including replacements.
+
+    Parameters
+    ----------
+    dummy_gdml_path
+        path to the GDML template.
+    replacements
+        Constants in the GDML file to replace.
     """
-    # this is an (undocumented) option to remove meshes; either all or from a list (for performance tests).
-    no_meshes = b.runtime_config.get("no_meshes", False)
-    if (isinstance(no_meshes, Container) and (name in no_meshes)) or no_meshes is True:
-        log.warning("skipping mesh %s", name)
-        return None
 
-    file = resources.files("pygeomhades") / "models" / file
-    solid = pyg4ometry.stl.Reader(file, solidname=name, centre=False, registry=b.registry).getSolid()
-    return geant4.LogicalVolume(solid, material, name, b.registry)
+    gdml_text = dummy_gdml_path.read_text()
+
+    for key, val in replacements.items():
+        gdml_text = gdml_text.replace(key, f"{val:.{1}f}")
+
+    with tempfile.NamedTemporaryFile("w+", suffix=".gdml") as f:
+        f.write(gdml_text)
+        f.flush()
+        reader = gdml.Reader(f.name)
+
+        reg_tmp = reader.getRegistry()
+
+    if len(reg_tmp.logicalVolumeList) == 1:
+        return next(iter(reg_tmp.logicalVolumeDict.values()))
+    return reg_tmp.logicalVolumeDict[vol_name]
