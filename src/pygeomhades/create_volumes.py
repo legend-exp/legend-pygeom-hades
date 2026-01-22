@@ -59,8 +59,16 @@ def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry
 
 
 def create_detector(reg: geant4.Registry, ged_meta_dict: AttrsDict) -> geant4.LogicalVolume:
-    """Construct the detector logical volume"""
+    """Construct the detector logical volume
 
+    Parameters
+    ----------
+    reg
+        The registry to add the detector to.
+    ged_meta_dict
+        The diodes metadata for the detector.
+
+    """
     return make_hpge(ged_meta_dict, name=ged_meta_dict.name, registry=reg)
 
 
@@ -107,54 +115,90 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
     return wrap_lv
 
 
-def create_holder(detector_meta: dict, from_gdml: bool = False) -> geant4.LogicalVolume:
-    if from_gdml:
-        holder = detector_meta["hades"]["dimensions"]["holder"]["geometry"]
-        if detector_meta["type"] == "icpc":
-            dummy_gdml_path = Path(__file__).parent / "models/dummy/holder_icpc_dummy.gdml"
-            replacements = {
-                "max_radius_in_mm": holder["rings"]["radius_in_mm"],
-                "outer_height_in_mm": holder["cylinder"]["outer"]["height_in_mm"],
-                "inner_height_in_mm": holder["cylinder"]["inner"]["height_in_mm"],
-                "outer_radius_in_mm": holder["cylinder"]["outer"]["radius_in_mm"],
-                "inner_radius_in_mm": holder["cylinder"]["inner"]["radius_in_mm"],
-                "outer_bottom_cyl_radius_in_mm": holder["bottom_cyl"]["outer"]["radius_in_mm"],
-                "inner_bottom_cyl_radius_in_mm": holder["bottom_cyl"]["inner"]["radius_in_mm"],
-                "edge_height_in_mm": holder["edge"]["height_in_mm"],
-                "pos_top_ring_in_mm": holder["rings"]["position_top_ring_in_mm"],
-                "pos_bottom_ring_in_mm": holder["rings"]["position_bottom_ring_in_mm"],
-                "end_top_ring_in_mm": holder["rings"]["position_top_ring_in_mm"]
-                + holder["rings"]["height_in_mm"],
-                "end_bottom_ring_in_mm": holder["rings"]["position_bottom_ring_in_mm"]
-                + holder["rings"]["height_in_mm"],
-                "end_bottom_cyl_outer_in_mm": holder["cylinder"]["outer"]["height_in_mm"]
-                + holder["bottom_cyl"]["outer"]["height_in_mm"],
-                "end_bottom_cyl_inner_in_mm": holder["cylinder"]["outer"]["height_in_mm"]
-                + holder["bottom_cyl"]["inner"]["height_in_mm"],
-            }
-        elif detector_meta["type"] == "bege":
-            dummy_gdml_path = Path(__file__).parent / "models/dummy/holder_bege_dummy.gdml"
-            replacements = {
-                "max_radius_in_mm": holder["rings"]["radius_in_mm"],
-                "outer_height_in_mm": holder["cylinder"]["outer"]["height_in_mm"],
-                "inner_height_in_mm": holder["cylinder"]["inner"]["height_in_mm"],
-                "outer_radius_in_mm": holder["cylinder"]["outer"]["radius_in_mm"],
-                "inner_radius_in_mm": holder["cylinder"]["inner"]["radius_in_mm"],
-                "position_top_ring_in_mm": holder["rings"]["position_top_ring_in_mm"],
-                "end_top_ring_in_mm": holder["rings"]["height_in_mm"]
-                + holder["rings"]["position_top_ring_in_mm"],
-            }
-        else:
-            msg = "cannot construct geometry for coax or ppc"
-            raise RuntimeError(msg)
+def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = False) -> geant4.LogicalVolume:
+    """Construct the holder geometry
 
-        holder_lv = amend_gdml(dummy_gdml_path, replacements).getWorldVolume()
+    Parameters
+    ----------
+    holder_meta
+        The metadata describing the holder geometry, should be of the format:
 
-    else:
-        # TODO: add the construction of geometry
+        cylinder:
+            inner:
+                height_in_mm: 100
+                radius_in_mm: 100
+            outer:
+                height_in_mm: 104
+                radius_in_mm: 104
+        bottom_cyl:
+            inner:
+                height_in_mm: 100
+                radius_in_mm: 100
+            outer:
+                height_in_mm: 104
+                radius_in_mm: 104
+        rings:
+            position_top_ring_in_mm: 20
+            position_bottom_ring_in_mm: 30
+        edge:
+            height_in_mm: 1000
+
+    det_type
+        Detector type.
+    from_gdml
+        Whether to construct from a GDML file
+
+    """
+
+    if not from_gdml:
         msg = "cannot construct geometry without the gdml for now"
         raise RuntimeError(msg)
-    return holder_lv
+
+    if det_type == "icpc":
+        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_icpc_dummy.gdml"
+
+        rings = holder_meta["rings"]
+        cylinder = holder_meta["cylinder"]
+        bottom_cylinder = holder_meta["bottom_cyl"]
+
+        replacements = {
+            "max_radius_in_mm": rings.radius_in_mm,
+            "outer_height_in_mm": cylinder.outer.height_in_mm,
+            "inner_height_in_mm": cylinder.inner.height_in_mm,
+            "outer_radius_in_mm": cylinder.outer.radius_in_mm,
+            "inner_radius_in_mm": cylinder.inner.radius_in_mm,
+            "outer_bottom_cyl_radius_in_mm": bottom_cylinder.outer.radius_in_mm,
+            "inner_bottom_cyl_radius_in_mm": bottom_cylinder.inner.radius_in_mm,
+            "edge_height_in_mm": holder_meta.edge.height_in_mm,
+            "pos_top_ring_in_mm": rings.position_top_ring_in_mm,
+            "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
+            "end_top_ring_in_mm": rings.position_top_ring_in_mm + rings.height_in_mm,
+            "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm + rings.height_in_mm,
+            "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm + bottom_cylinder.outer.height_in_mm,
+            "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm + bottom_cylinder.inner.height_in_mm,
+        }
+
+    elif det_type == "bege":
+        dummy_gdml_path = resources.files("pygeomhades") / "models/dummy/holder_bege_dummy.gdml"
+
+        rings = holder_meta["rings"]
+        cylinder = holder_meta["cylinder"]
+        bottom_cylinder = holder_meta["bottom_cyl"]
+
+        replacements = {
+            "max_radius_in_mm": rings.radius_in_mm,
+            "outer_height_in_mm": cylinder.outer.height_in_mm,
+            "inner_height_in_mm": cylinder.inner.height_in_mm,
+            "outer_radius_in_mm": cylinder.outer.radius_in_mm,
+            "inner_radius_in_mm": cylinder.inner.radius_in_mm,
+            "position_top_ring_in_mm": rings.position_top_ring_in_mm,
+            "end_top_ring_in_mm": rings.height_in_mm + rings.position_top_ring_in_mm,
+        }
+    else:
+        msg = "cannot construct geometry for coax or ppc"
+        raise RuntimeError(msg)
+
+    return read_gdml_with_replacements(dummy_gdml_path, replacements)
 
 
 def create_bottom_plate(from_gdml: bool = False) -> geant4.Registry:
@@ -359,20 +403,27 @@ def create_source_holder(config: dict, from_gdml: bool = False) -> geant4.Logica
     return s_holder_lv
 
 
-def create_cryostat(from_gdml: bool = False) -> geant4.LogicalVolume:
-    if from_gdml:
-        dummy_gdml_path = Path(__file__).parent / "models/dummy/cryostat_dummy.gdml"
-        cryostat = dim.cryostat
-        replacements = {
-            "cryostat_height": cryostat["height"],
-            "cryostat_width": cryostat["width"],
-            "cryostat_thickness": cryostat["thickness"],
-            "position_cryostat_cavity_fromTop": cryostat["position_cavity_from_top"],
-            "position_cryostat_cavity_fromBottom": cryostat["position_cavity_from_bottom"],
-        }
-        cryo_lv = amend_gdml(dummy_gdml_path, replacements).getWorldVolume()
-    else:
-        # TODO: add the construction of geometry
+def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = False) -> geant4.LogicalVolume:
+    """Create the cryostat logical volume.
+
+    Parameters
+    ----------
+    cryostat_meta
+        Metadata describing the cryostat geometry (see {func}`create_wrap`) for details.
+
+    """
+
+    if not from_gdml:
         msg = "cannot construct geometry without the gdml for now"
         raise RuntimeError(msg)
-    return cryo_lv
+
+    dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "cryostat_dummy.gdml"
+
+    replacements = {
+        "cryostat_height": cryostat_meta.height,
+        "cryostat_width": cryostat_meta.width,
+        "cryostat_thickness": cryostat_meta.thickness,
+        "position_cryostat_cavity_fromTop": cryostat_meta.position_cavity_from_top,
+        "position_cryostat_cavity_fromBottom": cryostat_meta.position_cavity_from_bottom,
+    }
+    return read_gdml_with_replacements(dummy_gdml_path, replacements)

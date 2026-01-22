@@ -36,10 +36,10 @@ DEFAULT_ASSEMBLIES = {
     "vacuum_cavity",
     # "bottom_plate",
     # "lead_castle",
-    # "cryostat",
-    # "holder",
+    "cryostat",
+    "holder",
     "wrap",
-    # "detector",
+    "detector",
     # "source",
     # "source_holder",
 }
@@ -139,8 +139,6 @@ def construct(
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
     hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
 
-    dim.update_dims(hpge_meta, config)
-
     reg = geant4.Registry()
 
     # Create the world volume
@@ -156,48 +154,31 @@ def construct(
 
     if "vacuum_cavity" in assemblies:
         cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
-        _place_pv(cavity_lv, "cavity_pv", "world_lv", reg, z_in_mm=cryostat_meta.position_cavity_from_top)
+        _place_pv(cavity_lv, "cavity_pv", world_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
 
     if "wrap" in assemblies:
         wrap_lv = create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
 
         z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
-        pv = _place_pv(wrap_lv, "wrap_lv", cavity_lv, reg, z_in_mm=z_pos)
-
-        # add to the registry
+        pv = _place_pv(wrap_lv, "wrap_pv", cavity_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
     if "holder" in assemblies:
-        holder_lv = create_holder(hpge_meta, from_gdml=True)
-        geant4.PhysicalVolume(
-            [0, 0, 0],
-            [
-                0,
-                0,
-                dim.positions_from_cryostat["holder"] - dim.cryostat["position_cavity_from_top"],
-                "mm",
-            ],
-            holder_lv,
-            "holder_pv",
-            cavity_lv,
-            registry=reg,
-        )
+        holder_lv = create_holder(hpge_meta.hades.holder.geometry, hpge_meta.type, from_gdml=True)
+        z_pos = hpge_meta.hades.holder.position - cryostat_meta.position_cavity_from_top
+
+        pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
     if "detector" in assemblies:
         detector_lv = create_detector(reg, hpge_meta)
-        geant4.PhysicalVolume(
-            [0, 0, 0],
-            [
-                0,
-                0,
-                (dim.positions_from_cryostat["detector"] - dim.cryostat["position_cavity_from_top"]),
-                "mm",
-            ],
-            detector_lv,
-            "hpge_pv",
-            cavity_lv,
-            registry=reg,
-        )
+        z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
+        pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos)
+
+    if "cryostat" in assemblies:
+        cryo_lv = create_cryostat(cryostat_meta, from_gdml=True)
+        pv = _place_pv(cryo_lv, "cryo_pv", world_lv, reg)
+        reg.addVolumeRecursive(pv)
 
     if "bottom_plate" in assemblies:
         plate_lv = create_bottom_plate(from_gdml=True)
@@ -261,9 +242,5 @@ def construct(
             world_lv,
             registry=reg,
         )
-
-    if "cryostat" in assemblies:
-        cryo_lv = create_cryostat(from_gdml=True)
-        geant4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], cryo_lv, "cryo_pv", world_lv, registry=reg)
 
     return reg

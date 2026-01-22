@@ -139,19 +139,7 @@ bottom_plate = {
 }
 
 
-positions_from_cryostat = {
-    "detector": 0.0,
-    "holder": 0.0,
-    "wrap": 0.0,
-    "source": {"phi": 0.0, "r": 0.0, "x": 0.0, "y": 0.0, "z": 0.0},
-}
-
-
 def update_dims(hpge_meta: Mapping, config: Mapping) -> None:
-    positions_from_cryostat["detector"] = hpge_meta["hades"]["dimensions"]["detector"]["position"]
-    positions_from_cryostat["holder"] = hpge_meta["hades"]["dimensions"]["holder"]["position"]
-    positions_from_cryostat["wrap"] = hpge_meta["hades"]["dimensions"]["wrap"]["position"]
-
     lead_castle.clear()
     if config["lead_castle"] == 1:
         lead_castle.update(lead_castle_1)
@@ -160,11 +148,6 @@ def update_dims(hpge_meta: Mapping, config: Mapping) -> None:
     else:
         msg = "only 2 lead castle options"
         raise RuntimeError(msg)
-
-    positions_from_cryostat["source"]["phi"] = 0
-    positions_from_cryostat["source"]["x"] = 0.0
-    positions_from_cryostat["source"]["y"] = 0.0
-    positions_from_cryostat["source"]["z"] = 0.0
 
     if config["source"] == "am_collimated":
         source["height"] = 2.0
