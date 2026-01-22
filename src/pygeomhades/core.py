@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from collections.abc import Mapping
 from importlib import resources
+from pathlib import Path
 
 import dbetto
 from dbetto import TextDB
 from git import GitCommandError
 from legendmeta import LegendMetadata
-from pyg4ometry import geant4, visualisation
+from pyg4ometry import geant4
 
 from pygeomhades import dimensions as dim
 from pygeomhades.create_volumes import (
@@ -24,12 +26,12 @@ from pygeomhades.create_volumes import (
     create_wrap,
 )
 from pygeomhades.metadata import PublicMetadataProxy
+from pygeomhades.utils import merge_configs
 
 log = logging.getLogger(__name__)
 
 DEFAULT_DIMENSIONS = TextDB(resources.files("pygeomhades") / "configs" / "holder_wrap")
 
-# TODO: Could the user want to remove sections of the geometry?
 DEFAULT_ASSEMBLIES = {
     "vacuum_cavity",
     # "bottom_plate",
@@ -38,26 +40,15 @@ DEFAULT_ASSEMBLIES = {
     # "holder",
     # "wrap",
     "detector",
-    "source",
-    "source_holder",
+    # "source",
+    # "source_holder",
 }
-
-
-def merge_configs(ged_name: str, lmeta, config) -> dict:
-    ged_diode_meta = lmeta.hardware.detectors.germanium.diodes[ged_name]
-    # make sure there is an enrichment value
-    if ged_diode_meta["production"]["enrichment"]["val"] is None:
-        ged_diode_meta["production"]["enrichment"]["val"] = 0.9  # reasonable value
-    ged_hades_config = config[ged_name]
-    ged_diode_meta.update({"hades": {"dimensions": ged_hades_config}})
-
-    return ged_diode_meta
 
 
 def construct(
     assemblies: list[str] | set[str] = DEFAULT_ASSEMBLIES,
-    dimensions: dict = DEFAULT_DIMENSIONS,
-    config: str | dict | None = None,
+    dimensions: TextDB | Path | str = DEFAULT_DIMENSIONS,
+    config: str | Mapping | None = None,
     public_geometry: bool = False,
 ) -> geant4.Registry:
     """Construct the HADES geometry and return the registry containing the world volume.
@@ -80,6 +71,9 @@ def construct(
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
     """
+
+    if not isinstance(dimensions, TextDB):
+        dimensions = TextDB(dimensions)
 
     if isinstance(config, str):
         config = dbetto.utils.load_dict(config)
@@ -108,7 +102,9 @@ def construct(
         }
 
     hpge_name = config["hpge_name"]
-    hpge_meta = merge_configs(hpge_name, lmeta, dimensions)
+    diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
+    hpge_meta = merge_configs(diode_meta, {"dimensions": dimensions[hpge_name]})
+
     dim.update_dims(hpge_meta, config)
 
     reg = geant4.Registry()
@@ -119,11 +115,16 @@ def construct(
     world_lv = geant4.LogicalVolume(world, world_material, "world_lv", reg)
     reg.setWorld(world_lv)
 
+    # extract the metadata on the cryostat
+    cryostat_meta = dim.get_cryostat_metadata(
+        hpge_meta.type, hpge_meta.production.order, hpge_meta.production.slice
+    )
+
     if "vacuum_cavity" in assemblies:
-        cavity_lv = create_vacuum_cavity(reg)
+        cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
         geant4.PhysicalVolume(
             [0, 0, 0],
-            [0, 0, dim.cryostat["position_cavity_from_top"], "mm"],
+            [0, 0, cryostat_meta.position_cavity_from_top, "mm"],
             cavity_lv,
             "cavity_pv",
             world_lv,
@@ -239,9 +240,5 @@ def construct(
     if "cryostat" in assemblies:
         cryo_lv = create_cryostat(from_gdml=True)
         geant4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], cryo_lv, "cryo_pv", world_lv, registry=reg)
-
-    v = visualisation.VtkViewerColoured(defaultColour="random")
-    v.addLogicalVolume(reg.getWorldVolume())
-    v.view()
 
     return reg

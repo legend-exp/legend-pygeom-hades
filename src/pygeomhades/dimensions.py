@@ -1,5 +1,53 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
+from dbetto import AttrsDict
+
+
+def get_cryostat_metadata(det_type: str, order: int, xtal_slice: str) -> AttrsDict:
+    """Extract the metadata corresponding the the cryostat
+
+    In future this will be moved into external metadata.
+
+    Parameters
+    ----------
+    det_type
+        The detector type (should be icpc or bege).
+    order
+        The order number.
+    xtal_slice
+        The slice of the crystal (typically A or B).
+    """
+    cryostat = {
+        "width": 101.6,
+        "height": 122.2,
+        "thickness": 1.5,
+        "position_cavity_from_top": 1.5,
+        "position_cavity_from_bottom": 0.8,
+        "position_from_bottom": 250.0,
+    }
+    xl_orders = [3, 8, 9, 10]
+
+    if det_type == "bege":
+        cryostat["height"] = 122.2
+        cryostat["width"] = 101.6
+
+    elif (det_type == "icpc") and (order in xl_orders):
+        cryostat["width"] = 114.3
+    elif det_type == "icpc":
+        cryostat["width"] = 101.6
+    else:
+        msg = "Only detector type icpc or bege are supported."
+        raise ValueError(msg)
+
+    # override batch 9
+    if order == 9 and xtal_slice == "B":
+        cryostat["width"] = 107.95
+
+    return AttrsDict(cryostat)
+
+
 source_holder = {
     "lat": {"height": 0.0, "cavity_height": 0.0, "cavity_width": 0.0},
     "am": {
@@ -107,7 +155,7 @@ positions_from_cryostat = {
 }
 
 
-def update_dims(hpge_meta: dict, config: dict) -> None:
+def update_dims(hpge_meta: Mapping, config: Mapping) -> None:
     positions_from_cryostat["detector"] = hpge_meta["hades"]["dimensions"]["detector"]["position"]
     positions_from_cryostat["holder"] = hpge_meta["hades"]["dimensions"]["holder"]["position"]
     positions_from_cryostat["wrap"] = hpge_meta["hades"]["dimensions"]["wrap"]["position"]
@@ -134,9 +182,9 @@ def update_dims(hpge_meta: dict, config: dict) -> None:
 
     lead_castle.clear()
     if config["lead_castle"] == 1:
-        source.update(lead_castle_1)
+        lead_castle.update(lead_castle_1)
     elif config["lead_castle"] == 2:
-        source.update(lead_castle_2)
+        lead_castle.update(lead_castle_2)
     else:
         msg = "only 2 lead castle options"
         raise RuntimeError(msg)
@@ -145,43 +193,58 @@ def update_dims(hpge_meta: dict, config: dict) -> None:
     positions_from_cryostat["source"]["x"] = 0.0
     positions_from_cryostat["source"]["y"] = 0.0
     positions_from_cryostat["source"]["z"] = 0.0
+
     if config["source"] == "am_collimated":
         source["height"] = 2.0
         source["width"] = 1.0
+
         source["capsule"]["width"] = 20
         source["capsule"]["depth"] = None
         source["capsule"]["height"] = 10.0
+
         source["collimator"]["width"] = 30.0
         source["collimator"]["depth"] = 30.0
         source["collimator"]["height"] = 65.0
+
         source["collimator"]["beam_width"] = 1.0
         source["collimator"]["beam_height"] = 25.6
         source["collimator"]["window"] = 0.2
+
     elif config["source"] == "am":
         source["height"] = 0.1
         source["width"] = 1.0
+
         source["capsule"]["width"] = 11.08
         source["capsule"]["depth"] = 23.08
         source["capsule"]["height"] = 2.02
+
     elif config["source"] == "co":
         source["height"] = 0.1
         source["width"] = 5.0
+
         source["foil"]["width"] = 20.0
+
         source["foil"]["height"] = 0.5
         source["al_ring"]["height"] = 3.0
+
         source["al_ring"]["width_max"] = 30.0
         source["al_ring"]["width_min"] = 20.0
+
     elif config["source"] == "ba":
         source["height"] = 0.1
         source["width"] = 5.0
+
         source["foil"]["width"] = 26.0
         source["foil"]["height"] = 0.5
+
         source["al_ring"]["height"] = 3.0
         source["al_ring"]["width_max"] = 30.0
         source["al_ring"]["width_min"] = 26.0
+
     elif config["source"] == "th":
         source["height"] = 1.0
         source["width"] = 1.0
+
         source["capsule"]["height"] = 7.0
         source["capsule"]["width"] = 2.0
         source["epoxy"]["height"] = 2.2
@@ -189,6 +252,7 @@ def update_dims(hpge_meta: dict, config: dict) -> None:
         source["plates"]["height"] = 2.0
         source["plates"]["width"] = 8.0
         source["plates"]["cavity_width"] = 2.0
+
         source["collimator"]["height"] = 30.0
         source["collimator"]["depth"] = 30.0
         source["collimator"]["width"] = 30.0
@@ -213,11 +277,14 @@ def update_dims(hpge_meta: dict, config: dict) -> None:
         source_holder["top"]["top_inner_width"] = 20.0
         source_holder["top"]["top_bottom_height"] = 6.1
         source_holder["top"]["bottom_inner_width"] = 102.0
+
         source_holder["outer_width"] = 108.0
         source_holder["inner_width"] = 87.0
+
     elif config["source"] == "am":
         source_holder["outer_width"] = 108.0
         source_holder["inner_width"] = 87.0
+
         source_holder["am"]["top_height"] = 10.0
         source_holder["am"]["top_inner_width"] = 7.39
         source_holder["am"]["top_inner_depth"] = 15.39
@@ -226,12 +293,14 @@ def update_dims(hpge_meta: dict, config: dict) -> None:
         source_holder["am"]["top_plate_width"] = 11.08
         source_holder["am"]["top_plate_depth"] = 23.08
         source_holder["am"]["top_plate_height"] = 2.0
+
     elif config["source"] == "th":
         source_holder["copper"]["height"] = 30.0
         source_holder["copper"]["height"] = 32.0
         source_holder["copper"]["cavity_width"] = 3.0
         source_holder["copper"]["bottom_height"] = 3.0
         source_holder["copper"]["bottom_width"] = 50.0
+
         if config["measurement_type"] == "lat":
             source_holder["outer_width"] = 181.6
             source_holder["inner_width"] = 101.6
