@@ -34,8 +34,8 @@ DEFAULT_DIMENSIONS = TextDB(resources.files("pygeomhades") / "configs" / "holder
 
 DEFAULT_ASSEMBLIES = {
     "vacuum_cavity",
-    # "bottom_plate",
-    # "lead_castle",
+    "bottom_plate",
+    "lead_castle",
     "cryostat",
     "holder",
     "wrap",
@@ -87,6 +87,7 @@ def construct(
         - detector
         - source
         - source_holder
+
     extra_meta
         Extra metadata needed to construct the geometry (or a path to it).
     config
@@ -101,6 +102,8 @@ def construct(
           phi_in_deg: 0.0
           r_in_mm: 86.0
           z_in_mm: 3.0
+        lead_castle: 1
+
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
@@ -181,26 +184,21 @@ def construct(
         reg.addVolumeRecursive(pv)
 
     if "bottom_plate" in assemblies:
-        plate_lv = create_bottom_plate(from_gdml=True)
-        geant4.PhysicalVolume(
-            [0, 0, 0],
-            [0, 0, dim.cryostat["position_from_bottom"] + (dim.bottom_plate["height"]) / 2, "mm"],
-            plate_lv,
-            "plate_pv",
-            world_lv,
-            registry=reg,
-        )
+        plate_meta = dim.get_bottom_plate_metadata()
+        plate_lv = create_bottom_plate(plate_meta, from_gdml=True)
+
+        z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
+        pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
     if "lead_castle" in assemblies:
-        castle_lv = create_lead_castle(config["lead_castle"], from_gdml=True)
-        geant4.PhysicalVolume(
-            [0, 0, 0],
-            [0, 0, dim.cryostat["position_from_bottom"] - (dim.lead_castle["base_height"]) / 2, "mm"],
-            castle_lv,
-            "castle_pv",
-            world_lv,
-            registry=reg,
-        )
+        table = config["lead_castle"]
+        castle_dims = dim.get_castle_dimensions(table)
+        castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
+
+        z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0
+        pv = _place_pv(castle_lv, "castle_pv", world_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
     if "source" in assemblies:
         source_lv = create_source(config, from_gdml=True)

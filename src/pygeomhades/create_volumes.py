@@ -88,6 +88,7 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
         should be of the format:
 
         .. code-block:: yaml
+
             outer:
                 height_in_mm: 100
                 radius_in_mm: 100
@@ -123,25 +124,27 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = False
     holder_meta
         The metadata describing the holder geometry, should be of the format:
 
-        cylinder:
-            inner:
-                height_in_mm: 100
-                radius_in_mm: 100
-            outer:
-                height_in_mm: 104
-                radius_in_mm: 104
-        bottom_cyl:
-            inner:
-                height_in_mm: 100
-                radius_in_mm: 100
-            outer:
-                height_in_mm: 104
-                radius_in_mm: 104
-        rings:
-            position_top_ring_in_mm: 20
-            position_bottom_ring_in_mm: 30
-        edge:
-            height_in_mm: 1000
+        .. code-block:: yaml
+
+            cylinder:
+                inner:
+                    height_in_mm: 100
+                    radius_in_mm: 100
+                outer:
+                    height_in_mm: 104
+                    radius_in_mm: 104
+            bottom_cyl:
+                inner:
+                    height_in_mm: 100
+                    radius_in_mm: 100
+                outer:
+                    height_in_mm: 104
+                    radius_in_mm: 104
+            rings:
+                position_top_ring_in_mm: 20
+                position_bottom_ring_in_mm: 30
+            edge:
+                height_in_mm: 1000
 
     det_type
         Detector type.
@@ -179,7 +182,7 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = False
         }
 
     elif det_type == "bege":
-        dummy_gdml_path = resources.files("pygeomhades") / "models/dummy/holder_bege_dummy.gdml"
+        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_bege_dummy.gdml"
 
         rings = holder_meta["rings"]
         cylinder = holder_meta["cylinder"]
@@ -201,74 +204,120 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = False
     return read_gdml_with_replacements(dummy_gdml_path, replacements)
 
 
-def create_bottom_plate(from_gdml: bool = False) -> geant4.Registry:
-    if from_gdml:
-        dummy_gdml_path = Path(__file__).parent / "models/dummy/bottom_plate_dummy.gdml"
-        plate = dim.bottom_plate
+def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Registry:
+    """Create the bottom plate.
+
+    Parameters
+    ----------
+    plate_metadata
+        Metadata describing the position of the bottom plate.
+        This should have the format:
+
+        .. code-block:: yaml
+
+            width: 100
+            depth: 200
+            height: 300
+            cavity:
+                width: 100
+                depth: 200
+                height: 200
+    from_gdml
+        Whether to construct from a GDML file
+
+    """
+    if not from_gdml:
+        msg = "cannot construct geometry without the gdml for now"
+        raise RuntimeError(msg)
+
+    dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "bottom_plate_dummy.gdml"
+
+    replacements = {
+        "bottom_plate_width": plate_metadata.width,
+        "bottom_plate_depth": plate_metadata.depth,
+        "bottom_plate_height": plate_metadata.height,
+        "bottom_cavity_plate_width": plate_metadata.cavity.width,
+        "bottom_cavity_plate_depth": plate_metadata.cavity.depth,
+        "bottom_cavity_plate_height": plate_metadata.cavity.height,
+    }
+    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+
+
+def create_lead_castle(
+    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = False
+) -> geant4.LogicalVolume:
+    """Create the lead castle.
+
+    Parameters
+    ----------
+    table_number
+        Which table the measurements were taken on (1 or 2).
+    castle_dimensions
+        The metadata describing the lead castle dimensions. This should
+        have the fields "base", "inner_cavity", "cavity",
+        "top", "front" and "copper_plate".
+
+        Each should have a subdictionary with this format:
+
+        .. code-block:: yaml
+
+            base:
+                height: 100
+                depth: 100
+                width: 100
+
+    from_gdml
+        Whether to construct from a GDML file
+    """
+
+    if not from_gdml:
+        msg = "cannot construct geometry without the gdml for now"
+        raise RuntimeError(msg)
+
+    if table_num not in [1, 2]:
+        msg = f"Table number must be 1 or 2 not {table_num}"
+        raise ValueError(msg)
+
+    dummy_gdml_path = (
+        resources.files("pygeomhades") / "models" / "dummy" / f"lead_castle_table{table_num}_dummy.gdml"
+    )
+
+    if table_num == 1:
         replacements = {
-            "bottom_plate_width": plate["width"],
-            "bottom_plate_depth": plate["depth"],
-            "bottom_plate_height": plate["height"],
-            "bottom_cavity_plate_width": plate["cavity_width"],
-            "bottom_cavity_plate_depth": plate["cavity_depth"],
-            "bottom_cavity_plate_height": plate["cavity_height"],
+            "base_width_1": castle_dimensions.base.width,
+            "base_depth_1": castle_dimensions.base.depth,
+            "base_height_1": castle_dimensions.base.height,
+            "inner_cavity_width_1": castle_dimensions.inner_cavity.width,
+            "inner_cavity_depth_1": castle_dimensions.inner_cavity.depth,
+            "inner_cavity_height_1": castle_dimensions.inner_cavity.height,
+            "cavity_width_1": castle_dimensions.cavity.width,
+            "cavity_depth_1": castle_dimensions.cavity.depth,
+            "cavity_height_1": castle_dimensions.cavity.height,
+            "top_width_1": castle_dimensions.top.width,
+            "top_depth_1": castle_dimensions.top.depth,
+            "top_height_1": castle_dimensions.top.height,
+            "front_width_1": castle_dimensions.front.width,
+            "front_depth_1": castle_dimensions.front.depth,
+            "front_height_1": castle_dimensions.front.height,
         }
-        plate_lv = amend_gdml(dummy_gdml_path, replacements).getWorldVolume()
-    else:
-        # TODO: add the construction of geometry
-        msg = "cannot construct geometry without the gdml for now"
-        raise RuntimeError(msg)
-    return plate_lv
 
+    elif table_num == 2:
+        replacements = {
+            "base_width_2": castle_dimensions.base.width,
+            "base_depth_2": castle_dimensions.base.depth,
+            "base_height_2": castle_dimensions.base.height,
+            "inner_cavity_width_2": castle_dimensions.inner_cavity.width,
+            "inner_cavity_depth_2": castle_dimensions.inner_cavity.depth,
+            "inner_cavity_height_2": castle_dimensions.inner_cavity.height,
+            "top_width_2": castle_dimensions.top.width,
+            "top_depth_2": castle_dimensions.top.depth,
+            "top_height_2": castle_dimensions.top.height,
+            "copper_plate_width": castle_dimensions.copper_plate.width,
+            "copper_plate_depth": castle_dimensions.copper_plate.depth,
+            "copper_plate_height": castle_dimensions.copper_plate.height,
+        }
 
-def create_lead_castle(table_num: int, from_gdml: bool = False) -> geant4.LogicalVolume:
-    if from_gdml:
-        if table_num == 1:
-            dummy_gdml_path = Path(__file__).parent / "models/dummy/lead_castle_table1_dummy.gdml"
-            lead_castle = dim.lead_castle_1
-            replacements = {
-                "base_width_1": lead_castle["base_width"],
-                "base_depth_1": lead_castle["base_depth"],
-                "base_height_1": lead_castle["base_height"],
-                "inner_cavity_width_1": lead_castle["inner_cavity_width"],
-                "inner_cavity_depth_1": lead_castle["inner_cavity_depth"],
-                "inner_cavity_height_1": lead_castle["inner_cavity_height"],
-                "cavity_width_1": lead_castle["cavity_width"],
-                "cavity_depth_1": lead_castle["cavity_depth"],
-                "cavity_height_1": lead_castle["cavity_height"],
-                "top_width_1": lead_castle["top_width"],
-                "top_depth_1": lead_castle["top_depth"],
-                "top_height_1": lead_castle["top_height"],
-                "front_width_1": lead_castle["front_width"],
-                "front_depth_1": lead_castle["front_depth"],
-                "front_height_1": lead_castle["front_height"],
-            }
-        elif table_num == 2:
-            dummy_gdml_path = Path(__file__).parent / "models/dummy/lead_castle_table2_dummy.gdml"
-            lead_castle = dim.lead_castle_2
-            replacements = {
-                "base_width_2": lead_castle["base_width"],
-                "base_depth_2": lead_castle["base_depth"],
-                "base_height_2": lead_castle["base_height"],
-                "inner_cavity_width_2": lead_castle["inner_cavity_width"],
-                "inner_cavity_depth_2": lead_castle["inner_cavity_depth"],
-                "inner_cavity_height_2": lead_castle["inner_cavity_height"],
-                "top_width_2": lead_castle["top_width"],
-                "top_depth_2": lead_castle["top_depth"],
-                "top_height_2": lead_castle["top_height"],
-                "copper_plate_width": lead_castle["copper_plate_width"],
-                "copper_plate_depth": lead_castle["copper_plate_depth"],
-                "copper_plate_height": lead_castle["copper_plate_height"],
-            }
-        else:
-            msg = "there are only 2 lead castles currently in the gdml"
-            raise RuntimeError(msg)
-        castle_lv = amend_gdml(dummy_gdml_path, replacements).getWorldVolume()
-    else:
-        # TODO: add the construction of geometry
-        msg = "cannot construct geometry without the gdml for now"
-        raise RuntimeError(msg)
-    return castle_lv
+    return read_gdml_with_replacements(dummy_gdml_path, replacements)
 
 
 def create_source(config: dict, from_gdml: bool = False) -> geant4.LogicalVolume:
@@ -410,6 +459,9 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = False) -> geant4
     ----------
     cryostat_meta
         Metadata describing the cryostat geometry (see {func}`create_wrap`) for details.
+    from_gdml
+        Whether to construct from a GDML file
+
 
     """
 
