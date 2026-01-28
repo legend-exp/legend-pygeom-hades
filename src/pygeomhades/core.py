@@ -2,27 +2,94 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from math import pi
+from collections.abc import Mapping
+from importlib import resources
+from pathlib import Path
+
 import dbetto
+from dbetto import TextDB
 from git import GitCommandError
 from legendmeta import LegendMetadata
 from pyg4ometry import geant4
-from pyg4ometry import gdml
-from pygeomtools.viewer import visualize
-from pygeomtools.write import write_pygeom
-from pygeomtools.detectors import generate_detector_macro
+
+from pygeomhades import dimensions as dim
+from pygeomhades.create_volumes import (
+    create_bottom_plate,
+    create_cryostat,
+    create_holder,
+    create_hpge,
+    create_lead_castle,
+    create_source,
+    create_source_holder,
+    create_th_plate,
+    create_vacuum_cavity,
+    create_wrap,
+)
+from pygeomhades.metadata import PublicMetadataProxy
+from pygeomhades.utils import merge_configs
 
 log = logging.getLogger(__name__)
 
+DEFAULT_DIMENSIONS = TextDB(resources.files("pygeomhades") / "configs" / "holder_wrap")
+
+DEFAULT_ASSEMBLIES = {
+    "vacuum_cavity",
+    "bottom_plate",
+    "lead_castle",
+    "cryostat",
+    "holder",
+    "wrap",
+    "detector",
+    # "source",
+    # "source_holder",
+}
+
+
+def _place_pv(
+    lv: geant4.LogicalVolume,
+    name: str,
+    mother_lv: geant4.LogicalVolume,
+    reg: geant4.registry,
+    *,
+    x_in_mm: float = 0,
+    y_in_mm: float = 0,
+    z_in_mm: float = 0,
+) -> geant4.PhysicalVolume:
+    """Wrapper to place the physical volume more concisely."""
+    return geant4.PhysicalVolume(
+        [0, 0, 0],
+        [x_in_mm, y_in_mm, z_in_mm, "mm"],
+        lv,
+        name,
+        mother_lv,
+        registry=reg,
+    )
+
 
 def construct(
-    config: str | dict | None = None,
+    assemblies: list[str] | set[str] = DEFAULT_ASSEMBLIES,
+    extra_meta: TextDB | Path | str = DEFAULT_DIMENSIONS,
+    config: str | Mapping | None = None,
     public_geometry: bool = False,
 ) -> geant4.Registry:
     """Construct the HADES geometry and return the registry containing the world volume.
 
     Parameters
     ----------
+    assemblies
+        A list of assemblies to construct, should be a subset of:
+        - vacuum_cavity
+        - bottom_plate
+        - lead_castle
+        - cryostat
+        - holder
+        - wrap
+        - detector
+        - source
+        - source_holder
+
+    extra_meta
+        Extra metadata needed to construct the geometry (or a path to it).
     config
       configuration dictionary (or file containing it) defining relevant
       parameters of the geometry.
@@ -35,10 +102,16 @@ def construct(
           phi_in_deg: 0.0
           r_in_mm: 86.0
           z_in_mm: 3.0
+        lead_castle: 1
+
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
     """
+
+    if not isinstance(extra_meta, TextDB):
+        extra_meta = TextDB(extra_meta)
+
     if isinstance(config, str):
         config = dbetto.utils.load_dict(config)
 
@@ -46,99 +119,28 @@ def construct(
     if not public_geometry:
         with contextlib.suppress(GitCommandError):
             lmeta = LegendMetadata(lazy=True)
+
     # require user action to construct a testdata-only geometry (i.e. to avoid accidental creation of "wrong"
     # geometries by LEGEND members).
     if lmeta is None and not public_geometry:
         msg = "cannot construct geometry from public testdata only, if not explicitly instructed"
         raise RuntimeError(msg)
+
     if lmeta is None:
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
-        # TODO: use this public metadata proxy
-        # dummy_geom = PublicMetadataProxy()
+        lmeta = PublicMetadataProxy()
 
-    config = config if config is not None else {}
+    if config is None or config == {}:
+        config = {
+            "hpge_name": "V07302A",
+            "lead_castle": 1,
+            "source": "am_collimated",
+            "measurement_type": "top",
+        }
 
-    #define all dimensions
-
-    #Cryostat dimensions
-    cryostat_height = 171.0
-    cryostat_width = 101.6
-    cryostat_thickness = 1.5
-    position_cryostat_cavity_fromTop = 1.5
-    position_cryostat_cavity_fromBottom = 0.8
-    position_cryostat_fromBottom = 250.0
-
-    # Base dimensions
-    base_width_1 = 480.0
-    base_depth_1 = 450.0
-    base_height_1 = 500.0
-
-    # Inner cavity dimensions
-    inner_cavity_width_1 = 300.0
-    inner_cavity_depth_1 = 250.0
-    inner_cavity_height_1 = 500.0
-
-    # Cavity dimensions
-    cavity_width_1 = 120.0
-    cavity_depth_1 = 100.0
-    cavity_height_1 = 400.0
-
-    # Top dimensions
-    top_width_1 = 300.0
-    top_depth_1 = 300.0
-    top_height_1 = 90.0
-
-    # Front dimensions
-    front_width_1 = 160.0
-    front_depth_1 = 100.0
-    front_height_1 = 400.0
-
-    # Bottom plate
-    bottom_plate_width = 750.0
-    bottom_plate_depth = 750.0
-    bottom_plate_height = 15.0
-
-    # Cavity bottom plate
-    cavity_bottom_plate_width = 120.0
-    cavity_bottom_plate_depth = 940.0
-    cavity_bottom_plate_height = 20.0
-
-    # Source holder dimensions
-    source_holder_top_plate_height = 3.0
-    source_holder_top_height = 10.0
-
-    source_holder_top_plate_width = 30.0
-    source_holder_top_inner_width = 20.0
-    source_holder_inner_width = 87.0
-    source_holder_bottom_inner_width = 102.0
-    source_holder_outer_width = 108.0
-
-    source_holder_topbottom_height = 6.1
-
-    # Positions relative to cryostat
-    position_detector_fromcryostat_z = 6.5
-    position_holder_fromcryostat_z = 5.5
-    position_wrap_fromcryostat_z = 5.5
-
-    position_source_fromcryostat_phi = 0.0
-    position_source_fromcryostat_r = 0.0
-    position_source_fromcryostat_x = 0.0
-    position_source_fromcryostat_y = -0.0
-    position_source_fromcryostat_z = 200.0
-
-    # Source dimensions
-    source_height = 0.1
-    source_width = 5.0
-
-    # Source foil
-    source_foil_height = 0.5
-    source_foil_width = 26.0
-
-    # Aluminum ring around source
-    source_Alring_height = 3.0
-    source_Alring_width_max = 30.0
-    source_Alring_width_min = 26.0
-
+    hpge_name = config["hpge_name"]
+    diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
+    hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
 
     reg = geant4.Registry()
 
@@ -148,80 +150,91 @@ def construct(
     world_lv = geant4.LogicalVolume(world, world_material, "world_lv", reg)
     reg.setWorld(world_lv)
 
-    #create vacuum cavity
-    vacuum_cavity_radius=(cryostat_width-2*cryostat_thickness)/2
-    vacuum_cavity_z = (cryostat_height-position_cryostat_cavity_fromTop-position_cryostat_cavity_fromBottom)
-    cavity_material = geant4.MaterialPredefined("G4_AIR")
-    vacuum_cavity = geant4.solid.GenericPolycone("vacuum_cavity", 0.0, 2.0 * pi,  pR=([0.0, vacuum_cavity_radius, vacuum_cavity_z, 0.0]),  pZ=[0.0, 0.0, vacuum_cavity_z, vacuum_cavity_z],   lunit='mm', aunit='rad', registry=reg)
-    cavity_lv = geant4.LogicalVolume(vacuum_cavity, cavity_material, "cavity_lv", reg)
-    geant4.PhysicalVolume([0, 0, 0], [0, 0, position_cryostat_cavity_fromTop, "mm"], cavity_lv, "cavity_pv", world_lv, registry=reg)
+    # extract the metadata on the cryostat
+    cryostat_meta = dim.get_cryostat_metadata(
+        hpge_meta.type, hpge_meta.production.order, hpge_meta.production.slice
+    )
 
+    if "vacuum_cavity" in assemblies:
+        cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
+        _place_pv(cavity_lv, "cavity_pv", world_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
 
-    workingDir="/global/cfs/cdirs/m2676/users/biancacci/hades-sim/legend-pygeom-hades/geom_gdml/"
+    if "wrap" in assemblies:
+        wrap_lv = create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
 
+        z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
+        pv = _place_pv(wrap_lv, "wrap_pv", cavity_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
-    #add detector
-    reader_detector = gdml.Reader(f"{workingDir}detector.gdml")
-    reg_detector  = reader_detector.getRegistry()
-    detector_lv = reg_detector.getWorldVolume()
-    detector_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, (position_detector_fromcryostat_z-position_cryostat_cavity_fromTop), "mm"], detector_lv, "hpge_physical", cavity_lv, registry=reg_detector)
-    reg.addVolumeRecursive(detector_pv)
+    if "holder" in assemblies:
+        holder_lv = create_holder(hpge_meta.hades.holder.geometry, hpge_meta.type, from_gdml=True)
+        z_pos = hpge_meta.hades.holder.position - cryostat_meta.position_cavity_from_top
 
-    #add wrap
-    reader_wrap = gdml.Reader(f"{workingDir}wrap.gdml")
-    reg_wrap  = reader_wrap.getRegistry()
-    wrap_lv = reg_wrap.getWorldVolume()
-    wrap_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, position_wrap_fromcryostat_z-position_cryostat_cavity_fromTop, "mm"], wrap_lv, "hpge_physical", cavity_lv, registry=reg_wrap)
-    reg.addVolumeRecursive(wrap_pv)
+        pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
-    #add holder
-    reader_holder = gdml.Reader(f"{workingDir}holder.gdml")
-    reg_holder  = reader_holder.getRegistry()
-    holder_lv = reg_holder.getWorldVolume()
-    holder_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, position_holder_fromcryostat_z-position_cryostat_cavity_fromTop, "mm"], holder_lv, "hpge_physical", cavity_lv, registry=reg_holder)
-    reg.addVolumeRecursive(holder_pv)
+    if "detector" in assemblies:
+        detector_lv = create_hpge(reg, hpge_meta)
 
+        z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
 
-    #add bottom plate
-    reader_plate = gdml.Reader(f"{workingDir}bottom_plate.gdml")
-    reg_plate  = reader_plate.getRegistry()
-    plate_lv = reg_plate.getWorldVolume()
-    plate_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, position_cryostat_fromBottom+(bottom_plate_height)/2, "mm"], plate_lv, "hpge_physical", world_lv, registry=reg_plate)
-    reg.addVolumeRecursive(plate_pv)
+        pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos)
 
-    #add lead castle
-    reader_castle = gdml.Reader(f"{workingDir}lead_castle_table1.gdml")
-    reg_castle  = reader_castle.getRegistry()
-    castle_lv = reg_castle.getWorldVolume()
-    castle_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, position_cryostat_fromBottom-(base_height_1)/2, "mm"], castle_lv, "hpge_physical", world_lv, registry=reg_castle)
-    reg.addVolumeRecursive(castle_pv)
+    if "cryostat" in assemblies:
+        cryo_lv = create_cryostat(cryostat_meta, from_gdml=True)
+        pv = _place_pv(cryo_lv, "cryo_pv", world_lv, reg)
+        reg.addVolumeRecursive(pv)
 
-    #add source
-    reader_source = gdml.Reader(f"{workingDir}source_encapsulated_ba_HS4.gdml")
-    reg_source  = reader_source.getRegistry()
-    source_lv = reg_source.getWorldVolume()
-    source_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0,-position_source_fromcryostat_z, "mm"], source_lv, "hpge_physical", world_lv, registry=reg_source)
-    reg.addVolumeRecursive(source_pv)
+    if "bottom_plate" in assemblies:
+        plate_meta = dim.get_bottom_plate_metadata()
+        plate_lv = create_bottom_plate(plate_meta, from_gdml=True)
 
-    #add source holder
-    reader_sholder = gdml.Reader(f"{workingDir}plexiglass_source_holder.gdml")
-    reg_sholder  = reader_sholder.getRegistry()
-    sholder_lv = reg_sholder.getWorldVolume()
-    sholder_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, -(position_source_fromcryostat_z+source_holder_top_plate_height/2), "mm"], sholder_lv, "hpge_physical", world_lv, registry=reg_sholder)
-    reg.addVolumeRecursive(sholder_pv)
+        z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
+        pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
-    #add cryostat
-    reader_cryo = gdml.Reader(f"{workingDir}cryostat.gdml")
-    reg_cryo  = reader_cryo.getRegistry()
-    cryo_lv = reg_cryo.getWorldVolume()
-    cryo_pv=geant4.PhysicalVolume([0, 0, 0], [0, 0, 0, "mm"], cryo_lv, "hpge_physical", world_lv, registry=reg_cryo)
-    reg.addVolumeRecursive(cryo_pv)
+    if "lead_castle" in assemblies:
+        table = config["lead_castle"]
+        castle_dims = dim.get_castle_dimensions(table)
+        castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
 
+        z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0
+        pv = _place_pv(castle_lv, "castle_pv", world_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
-    
-    
-    visualize(reg)
-    
-    #generate_detector_macro(reg, "pv_reg.mac")
-    # write_pygeom(reg, "simple_teststand.gdml")
+    if "source" in assemblies:
+        source_type = config["source"]
+        source_dims = dim.get_source_metadata(source_type)
+        holder_dims = {}
+
+        source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
+        z_pos = hpge_meta.hades.source.z.position
+
+        pv = _place_pv(source_lv, "source_pv", world_lv, reg, z_in_mm=z_pos)
+
+        if config["source"] == "th":
+            th_plate_lv = create_th_plate(source_dims, from_gdml=True)
+            pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
+
+    if "source_holder" in assemblies:
+        holder_dims = {}
+
+        s_holder_lv = create_source_holder(config, from_gdml=True)
+        geant4.PhysicalVolume(
+            [0, 0, 0],
+            [
+                0,
+                0,
+                -(
+                    dim.positions_from_cryostat["source"]["z"]
+                    + dim.source_holder["top"]["top_plate_height"] / 2
+                ),  # TODO: this will break so we need to change it
+                "mm",
+            ],
+            s_holder_lv,
+            "s_holder_pv",
+            world_lv,
+            registry=reg,
+        )
+
     return reg
