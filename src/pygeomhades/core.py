@@ -16,6 +16,7 @@ from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
 from pygeomhades import dimensions as dim
+from pygeomhades import set_source_position as source_pos
 from pygeomhades.create_volumes import (
     create_bottom_plate,
     create_cryostat,
@@ -141,6 +142,18 @@ def construct(
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
         lmeta = PublicMetadataProxy()
 
+    if config is None or config == {}:
+        config = {
+            "hpge_name": "V07302A",
+            "measurement": "am_HS1_top_dlt",
+            "run": 1,
+            "phiPosition":0.0,
+            "rPosition": 57.5,
+            "zPosition": 3.0
+        }
+
+    hpge_name = config["hpge_name"]
+    position = config["measurement"][7:10]
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
     hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
 
@@ -214,29 +227,17 @@ def construct(
         cryo_lv.pygeom_color_rgba = [0.0, 0.2, 0.8, 0.3]
 
     if "source" in assemblies:
-        if not construct_unverified:
-            msg = (
-                "Source assembly construction is implemented, but not verified. "
-                "To proceed anyway, set construct_unverified to True."
-            )
-            raise NotImplementedError(msg)
-
-        # basic information on the source
-        source_type = measurement_info.source
-        position = measurement_info.position
-
-        # extract some metadata
+        source_type = config["measurement"][:6]
         source_dims = dim.get_source_metadata(source_type)
         holder_dims = dim.get_source_holder_metadata(source_type, position)
 
         source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
-        z_pos = hpge_meta.hades.source.z.position
+        run, source_position, _ = source_pos.set_source_position(config)
+        x_pos, y_pos, z_pos = source_position    
+        #z_pos = hpge_meta.hades.source.z.position
+        pv = _place_pv(source_lv, "source_pv", world_lv, reg, x_in_mm=x_pos, y_in_mm=y_pos, z_in_mm=z_pos)
 
-        pv = _place_pv(source_lv, "source_pv", lab_lv, reg, z_in_mm=z_pos)
-        reg.addVolumeRecursive(pv)
-
-        # construct th plate if needed
-        if source_type == "th":
+        if source_type == "th_HS2":
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", lab_lv, reg)
             reg.addVolumeRecursive(pv)
@@ -258,7 +259,7 @@ def construct(
         pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-        table = config["lead_castle"]
+        table = 1 #config["lead_castle"]
         castle_dims = dim.get_castle_dimensions(table)
         castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
 
