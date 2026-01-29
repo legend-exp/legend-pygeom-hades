@@ -41,8 +41,8 @@ DEFAULT_ASSEMBLIES = {
     "holder",
     "wrap",
     "detector",
-    # "source",
-    # "source_holder",
+     "source",
+    #"source_holder",
 }
 
 
@@ -141,6 +141,7 @@ def construct(
             "zPosition": 3.0
         }
 
+    source_type = config["measurement"][:6]
     hpge_name = config["hpge_name"]
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
     hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
@@ -189,7 +190,6 @@ def construct(
         reg.addVolumeRecursive(pv)
 
     if "source" in assemblies:
-        source_type = config["measurement"][:6]
         source_dims = dim.get_source_metadata(source_type)
         holder_dims = {}
 
@@ -203,9 +203,9 @@ def construct(
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
 
-    if "source_holder" in assemblies:
+    if source_type != "am_HS1":
+        #add source holder
         holder_dims = {}
-
         s_holder_lv = create_source_holder(config, from_gdml=True)
         geant4.PhysicalVolume(
             [0, 0, 0],
@@ -223,7 +223,7 @@ def construct(
             world_lv,
             registry=reg,
         )
-    if source_type != "am_collimated":
+    
         #insert bottom plate and lead castle only for Static measurements
         
         plate_meta = dim.get_bottom_plate_metadata()
