@@ -398,6 +398,7 @@ def create_source(
             "collimator_beam_height": source["collimator"]["beam_height"],
             "collimator_beam_width": source["collimator"]["beam_width"],
         }
+        vol_name = 'Source_Collimated'
     elif source_type == "am_HS6":
         replacements = {
             "source_height": source["height"],
@@ -406,6 +407,7 @@ def create_source(
             "source_capsule_width": source["capsule"]["width"],
             "source_capsule_depth": source["capsule"]["depth"],
         }
+        vol_name = 'Source_Encapsulated'
     elif source_type in ["ba_HS4", "co_HS5"]:
         replacements = {
             "source_height": source["height"],
@@ -415,6 +417,7 @@ def create_source(
             "source_Alring_width_min": source["al_ring"]["width_min"],
             "source_Alring_width_max": source["al_ring"]["width_max"],
         }
+        vol_name = 'Source_Encapsulated'
     elif source_type == "th_HS2":
         source_holder = holder_dims
 
@@ -432,10 +435,11 @@ def create_source(
             "CuSource_holder_bottom_width": source_holder["copper"]["bottom_width"],
             "source_offset_height": source["offset_height"],
         }
+        vol_name = 'CuSource_Holder'
     else:
         msg = f"source type of {source_type} is not defined."
         raise RuntimeError(msg)
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name)
 
 
 def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.LogicalVolume:

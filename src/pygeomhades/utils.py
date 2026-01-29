@@ -59,10 +59,6 @@ def read_gdml_with_replacements(
         reader = gdml.Reader(f.name)
 
         reg_tmp = reader.getRegistry()
-    print(reg_tmp.logicalVolumeList)
-    print(reg_tmp.logicalVolumeDict)
-    print(vol_name)
-    print(reg_tmp.logicalVolumeDict.values())
-    #if len(reg_tmp.logicalVolumeList) == 1:
-    return next(iter(reg_tmp.logicalVolumeDict.values()))
-    #return reg_tmp.logicalVolumeDict[vol_name]
+    if len(reg_tmp.logicalVolumeList) == 1:
+        return next(iter(reg_tmp.logicalVolumeDict.values()))
+    return reg_tmp.logicalVolumeDict[vol_name]
