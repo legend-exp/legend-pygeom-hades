@@ -220,7 +220,7 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
     return AttrsDict(source)
 
 
-def get_source_holder_metadata(source_type: str, meas_type: str) -> AttrsDict:
+def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> AttrsDict:
     """Get the dimensions of the source holder.
 
     Parameters
@@ -274,7 +274,7 @@ def get_source_holder_metadata(source_type: str, meas_type: str) -> AttrsDict:
         if meas_type == "lat":
             source_holder.outer_width = 181.6
             source_holder.inner_width = 101.6
-            source_holder.lat = AttrsDict({"height": 65.0, "cavity_height": 60.0, "cavity_width": 50.0})
+            source_holder["lat"] = AttrsDict({"height": 65.0, "cavity_height": 60.0, "cavity_width": 50.0})
     else:
         msg = f"Source must be co, ba, am_collimated, am or th not {source_type}"
         raise RuntimeError(msg)
