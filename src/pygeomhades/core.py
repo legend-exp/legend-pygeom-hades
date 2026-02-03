@@ -7,6 +7,7 @@ from importlib import resources
 from pathlib import Path
 
 import dbetto
+import numpy as np
 import pygeomtools
 from dbetto import TextDB
 from git import GitCommandError
@@ -44,10 +45,14 @@ def _place_pv(
     x_in_mm: float = 0,
     y_in_mm: float = 0,
     z_in_mm: float = 0,
+    invert_z_axes: bool = False,
 ) -> geant4.PhysicalVolume:
     """Wrapper to place the physical volume more concisely."""
+
+    rot = [0, np.pi, 0, "rad"] if invert_z_axes else [0, 0, 0, "rad"]
+
     return geant4.PhysicalVolume(
-        [0, 0, 0],
+        rot,
         [x_in_mm, y_in_mm, z_in_mm, "mm"],
         lv,
         name,
@@ -135,8 +140,8 @@ def construct(
     reg = geant4.Registry()
 
     # Create the world volume
-    world_material = geant4.MaterialPredefined("G4_AIR")
-    world = geant4.solid.Box("world", 10, 10, 10, reg, "m")
+    world_material = geant4.MaterialPredefined("G4_Galactic")
+    world = geant4.solid.Box("world", 20, 20, 20, reg, "m")
     world_lv = geant4.LogicalVolume(world, world_material, "world_lv", reg)
     reg.setWorld(world_lv)
 
@@ -171,8 +176,14 @@ def construct(
         detector_lv = make_hpge(hpge_meta, name=hpge_meta.name, registry=reg)
         detector_lv.pygeom_color_rgba = [0.33, 0.33, 0.33, 1.0]
 
-        z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
-        pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos)
+        # an extra offset is needed to account for the different reference point
+        # this is the top of the crystal in the original GDML but it's the p+ contact here
+
+        extra_offset = max(detector_lv.get_profile()[1])
+        z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top + extra_offset
+
+        # we need to flip the detector axes when placing it in the cryostat
+        pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos, invert_z_axes=True)
 
         # register the detector info for remage
         pv.set_pygeom_active_detector(
