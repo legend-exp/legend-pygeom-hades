@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from importlib import resources
+from pathlib import Path
 
 import pygeomtools
 from dbetto import AttrsDict
@@ -102,3 +104,15 @@ def test_translate_to_detector_frame():
     assert x == 0.0
     assert y == 0.0
     assert z == 38.0
+
+def test_all_detectors():
+    dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
+
+    for det in dets:
+        reg = construct(
+            str(det.stem),
+            "am_HS1_top_dlt",
+            config={"lead_castle_idx": 2},
+            public_geometry=True,
+        )
+        assert isinstance(reg, geant4.Registry)
