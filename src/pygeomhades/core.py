@@ -167,8 +167,10 @@ def construct(
         pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-        # construct the hpge
-        detector_lv = make_hpge(hpge_meta, name=hpge_meta.name, registry=reg)
+        # construct the hpge, for now do not allow cylindrical asymmetry
+        detector_lv = make_hpge(
+            hpge_meta, name=hpge_meta.name, registry=reg, allow_cylindrical_asymmetry=False
+        )
         detector_lv.pygeom_color_rgba = [0.33, 0.33, 0.33, 1.0]
 
         z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
