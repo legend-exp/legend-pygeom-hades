@@ -92,8 +92,34 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
         }
         wrap_lv = read_gdml_with_replacements(dummy_gdml_path, replacements)
     else:
-        msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
+        # Create wrap directly with pyg4ometry
+        reg = geant4.Registry()
+        
+        # Define HD1000 material (polyethylene-like)
+        h = geant4.ElementSimple("Hydrogen", "H", 1, 1.0)
+        c = geant4.ElementSimple("Carbon", "C", 6, 12.01)
+        hd1000 = geant4.Material(name="HD1000", density=0.93, number_of_components=2, registry=reg)
+        hd1000.add_element_massfraction(h, 4.0 / (4.0 + 2.0 * 12.01))
+        hd1000.add_element_massfraction(c, 2.0 * 12.01 / (4.0 + 2.0 * 12.01))
+        
+        # Create polycone solid
+        wrap_outer_height = wrap_metadata.outer.height_in_mm
+        wrap_outer_radius = wrap_metadata.outer.radius_in_mm
+        wrap_inner_radius = wrap_metadata.inner.radius_in_mm
+        wrap_top_thickness = wrap_outer_height - wrap_metadata.inner.height_in_mm
+        
+        wrap_solid = geant4.solid.GenericPolycone(
+            "wrap",
+            0.0,
+            2.0 * np.pi,
+            pR=[0.0, wrap_outer_radius, wrap_outer_radius, wrap_inner_radius, wrap_inner_radius],
+            pZ=[0.0, 0.0, wrap_top_thickness, wrap_top_thickness, wrap_outer_height],
+            lunit="mm",
+            aunit="rad",
+            registry=reg,
+        )
+        
+        wrap_lv = geant4.LogicalVolume(wrap_solid, hd1000, "Wrap", reg)
 
     return wrap_lv
 
@@ -210,21 +236,58 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
         Whether to construct from a GDML file
 
     """
-    if not from_gdml:
-        msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
+    if from_gdml:
+        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "bottom_plate_dummy.gdml"
 
-    dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "bottom_plate_dummy.gdml"
-
-    replacements = {
-        "bottom_plate_width": plate_metadata.width,
-        "bottom_plate_depth": plate_metadata.depth,
-        "bottom_plate_height": plate_metadata.height,
-        "bottom_cavity_plate_width": plate_metadata.cavity.width,
-        "bottom_cavity_plate_depth": plate_metadata.cavity.depth,
-        "bottom_cavity_plate_height": plate_metadata.cavity.height,
-    }
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+        replacements = {
+            "bottom_plate_width": plate_metadata.width,
+            "bottom_plate_depth": plate_metadata.depth,
+            "bottom_plate_height": plate_metadata.height,
+            "bottom_cavity_plate_width": plate_metadata.cavity.width,
+            "bottom_cavity_plate_depth": plate_metadata.cavity.depth,
+            "bottom_cavity_plate_height": plate_metadata.cavity.height,
+        }
+        return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    else:
+        # Create bottom plate directly with pyg4ometry
+        reg = geant4.Registry()
+        
+        # Define aluminum material
+        al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
+        al_mat = geant4.Material(name="Al", density=2.7, number_of_components=1, registry=reg)
+        al_mat.add_element_massfraction(al, 1.0)
+        
+        # Create bottom plate box
+        bottom_plate_solid = geant4.solid.Box(
+            "bottom_plate",
+            plate_metadata.width,
+            plate_metadata.depth,
+            plate_metadata.height,
+            reg,
+            "mm"
+        )
+        
+        # Create cavity box
+        cavity_solid = geant4.solid.Box(
+            "cavity_bottom_plate",
+            plate_metadata.cavity.width,
+            plate_metadata.cavity.depth,
+            plate_metadata.cavity.height,
+            reg,
+            "mm"
+        )
+        
+        # Create subtraction (cavity offset in y direction)
+        cavity_offset = [0, plate_metadata.depth / 2.0, 0]
+        final_solid = geant4.solid.Subtraction(
+            "final_bottom_plate",
+            bottom_plate_solid,
+            cavity_solid,
+            [[0, 0, 0], cavity_offset],
+            reg
+        )
+        
+        return geant4.LogicalVolume(final_solid, al_mat, "Bottom_plate", reg)
 
 
 def create_lead_castle(
@@ -437,20 +500,42 @@ def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.L
         Whether to construct from a GDML file
 
     """
-    if not from_gdml:
-        msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
+    if from_gdml:
+        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "source_th_plates_dummy.gdml"
+        source = source_dims
 
-    dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "source_th_plates_dummy.gdml"
-    source = source_dims
+        replacements = {
+            "source_plates_height": source.plates.height,
+            "source_plates_width": source.plates.width,
+            "source_plates_cavity_width": source.plates.cavity_width,
+        }
 
-    replacements = {
-        "source_plates_height": source.plates.height,
-        "source_plates_width": source.plates.width,
-        "source_plates_cavity_width": source.plates.cavity_width,
-    }
-
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+        return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    else:
+        # Create th plate directly with pyg4ometry
+        reg = geant4.Registry()
+        
+        # Use predefined lead material
+        pb_mat = geant4.MaterialPredefined("G4_Pb", reg)
+        
+        # Create tube solid
+        source_plates_z = source_dims.plates.height
+        source_plates_radius = source_dims.plates.width / 2.0
+        source_plates_cavity_radius = source_dims.plates.cavity_width / 2.0
+        
+        source_plates_solid = geant4.solid.Tubs(
+            "source_plates",
+            source_plates_cavity_radius,
+            source_plates_radius,
+            source_plates_z,
+            0.0,
+            2.0 * np.pi,
+            reg,
+            "mm",
+            "rad"
+        )
+        
+        return geant4.LogicalVolume(source_plates_solid, pb_mat, "Source_Plates", reg)
 
 
 def create_source_holder(
@@ -555,17 +640,52 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = True) -> geant4.
 
     """
 
-    if not from_gdml:
-        msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
+    if from_gdml:
+        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "cryostat_dummy.gdml"
 
-    dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "cryostat_dummy.gdml"
-
-    replacements = {
-        "cryostat_height": cryostat_meta.height,
-        "cryostat_width": cryostat_meta.width,
-        "cryostat_thickness": cryostat_meta.thickness,
-        "position_cryostat_cavity_fromTop": cryostat_meta.position_cavity_from_top,
-        "position_cryostat_cavity_fromBottom": cryostat_meta.position_cavity_from_bottom,
-    }
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+        replacements = {
+            "cryostat_height": cryostat_meta.height,
+            "cryostat_width": cryostat_meta.width,
+            "cryostat_thickness": cryostat_meta.thickness,
+            "position_cryostat_cavity_fromTop": cryostat_meta.position_cavity_from_top,
+            "position_cryostat_cavity_fromBottom": cryostat_meta.position_cavity_from_bottom,
+        }
+        return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    else:
+        # Create cryostat directly with pyg4ometry
+        reg = geant4.Registry()
+        
+        # Define EN_AW-2011T8 material (aluminum alloy)
+        al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
+        cu = geant4.ElementSimple("Copper", "Cu", 29, 63.546)
+        pb = geant4.ElementSimple("Lead", "Pb", 82, 207.2)
+        bi = geant4.ElementSimple("Bismuth", "Bi", 83, 208.98)
+        
+        en_aw_2011t8 = geant4.Material(name="EN_AW-2011T8", density=2.84, number_of_components=4, registry=reg)
+        en_aw_2011t8.add_element_massfraction(al, 0.932)
+        en_aw_2011t8.add_element_massfraction(cu, 0.06)
+        en_aw_2011t8.add_element_massfraction(pb, 0.004)
+        en_aw_2011t8.add_element_massfraction(bi, 0.004)
+        
+        # Calculate dimensions
+        cryostat_height = cryostat_meta.height
+        cryostat_radius = cryostat_meta.width / 2.0
+        cryostat_cavity_radius = (cryostat_meta.width - 2 * cryostat_meta.thickness) / 2.0
+        start_cavity_z = cryostat_meta.position_cavity_from_top
+        end_cavity_z = cryostat_height - cryostat_meta.position_cavity_from_bottom
+        
+        # Create polycone solid
+        cryostat_solid = geant4.solid.GenericPolycone(
+            "cryostat",
+            0.0,
+            2.0 * np.pi,
+            pR=[0.0, cryostat_radius, cryostat_radius, cryostat_cavity_radius, 
+                cryostat_cavity_radius, 0.0, 0.0, cryostat_radius, cryostat_radius, 0.0],
+            pZ=[0.0, 0.0, start_cavity_z, start_cavity_z, end_cavity_z, 
+                end_cavity_z, end_cavity_z, end_cavity_z, cryostat_height, cryostat_height],
+            lunit="mm",
+            aunit="rad",
+            registry=reg,
+        )
+        
+        return geant4.LogicalVolume(cryostat_solid, en_aw_2011t8, "Cryostat", reg)
