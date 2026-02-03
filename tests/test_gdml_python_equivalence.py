@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 

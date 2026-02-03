@@ -13,6 +13,10 @@ from pygeomhades.materials import (
 )
 from pygeomhades.utils import read_gdml_with_replacements
 
+# Small offset used in boolean operations to ensure proper overlap/separation
+# This prevents numerical issues in geometry construction
+BOOLEAN_OPERATION_OFFSET_MM = 0.01
+
 
 def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry) -> geant4.LogicalVolume:
     """Construct the vacuum cavity.
@@ -183,8 +187,10 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
                 "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
                 "end_top_ring_in_mm": rings.position_top_ring_in_mm + rings.height_in_mm,
                 "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm + rings.height_in_mm,
-                "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm + bottom_cylinder.outer.height_in_mm,
-                "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm + bottom_cylinder.inner.height_in_mm,
+                "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm
+                + bottom_cylinder.outer.height_in_mm,
+                "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm
+                + bottom_cylinder.inner.height_in_mm,
             }
 
         elif det_type == "bege":
@@ -209,10 +215,10 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
 
         return read_gdml_with_replacements(dummy_gdml_path, replacements)
     # Create holder directly with pyg4ometry
-    reg = geant4.Registry()
+    holder_registry = geant4.Registry()
 
     # Define EN_AW-2011T8 material (aluminum alloy)
-    en_aw_2011t8 = create_en_aw_2011t8_material(reg)
+    aluminum_alloy_material = create_en_aw_2011t8_material(holder_registry)
 
     rings = holder_meta["rings"]
     cylinder = holder_meta["cylinder"]
@@ -232,15 +238,39 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
             "holder",
             0.0,
             2.0 * np.pi,
-            pR=[outer_radius, outer_radius, max_radius, max_radius, outer_radius,
-                outer_radius, outer_radius, 0.0, 0.0, inner_radius,
-                inner_radius, inner_radius, inner_radius],
-            pZ=[0.0, pos_top_ring_z, pos_top_ring_z, end_top_ring_z, end_top_ring_z,
-                inner_height, outer_height, outer_height, inner_height, inner_height,
-                end_top_ring_z, pos_top_ring_z, 0.0],
+            pR=[
+                outer_radius,
+                outer_radius,
+                max_radius,
+                max_radius,
+                outer_radius,
+                outer_radius,
+                outer_radius,
+                0.0,
+                0.0,
+                inner_radius,
+                inner_radius,
+                inner_radius,
+                inner_radius,
+            ],
+            pZ=[
+                0.0,
+                pos_top_ring_z,
+                pos_top_ring_z,
+                end_top_ring_z,
+                end_top_ring_z,
+                inner_height,
+                outer_height,
+                outer_height,
+                inner_height,
+                inner_height,
+                end_top_ring_z,
+                pos_top_ring_z,
+                0.0,
+            ],
             lunit="mm",
             aunit="rad",
-            registry=reg,
+            registry=holder_registry,
         )
     elif det_type == "icpc":
         msg = "ICPC holder python implementation not yet complete - use from_gdml=True"
@@ -249,7 +279,7 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
         msg = "cannot construct geometry for coax or ppc"
         raise NotImplementedError(msg)
 
-    return geant4.LogicalVolume(holder_solid, en_aw_2011t8, "Holder", reg)
+    return geant4.LogicalVolume(holder_solid, aluminum_alloy_material, "Holder", holder_registry)
 
 
 def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> geant4.Registry:
@@ -294,12 +324,7 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
 
     # Create bottom plate box
     bottom_plate_solid = geant4.solid.Box(
-        "bottom_plate",
-        plate_metadata.width,
-        plate_metadata.depth,
-        plate_metadata.height,
-        reg,
-        "mm"
+        "bottom_plate", plate_metadata.width, plate_metadata.depth, plate_metadata.height, reg, "mm"
     )
 
     # Create cavity box
@@ -309,17 +334,13 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
         plate_metadata.cavity.depth,
         plate_metadata.cavity.height,
         reg,
-        "mm"
+        "mm",
     )
 
     # Create subtraction (cavity offset in y direction)
     cavity_offset = [0, plate_metadata.depth / 2.0, 0]
     final_solid = geant4.solid.Subtraction(
-        "final_bottom_plate",
-        bottom_plate_solid,
-        cavity_solid,
-        [[0, 0, 0], cavity_offset],
-        reg
+        "final_bottom_plate", bottom_plate_solid, cavity_solid, [[0, 0, 0], cavity_offset], reg
     )
 
     return geant4.LogicalVolume(final_solid, al_mat, "Bottom_plate", reg)
@@ -413,7 +434,7 @@ def create_lead_castle(
             castle_dimensions.base.depth,
             castle_dimensions.base.height,
             reg,
-            "mm"
+            "mm",
         )
 
         inner_cavity_solid = geant4.solid.Box(
@@ -422,7 +443,7 @@ def create_lead_castle(
             castle_dimensions.inner_cavity.depth,
             castle_dimensions.inner_cavity.height,
             reg,
-            "mm"
+            "mm",
         )
 
         cavity_solid = geant4.solid.Box(
@@ -431,7 +452,7 @@ def create_lead_castle(
             castle_dimensions.cavity.depth,
             castle_dimensions.cavity.height,
             reg,
-            "mm"
+            "mm",
         )
 
         top_solid = geant4.solid.Box(
@@ -440,7 +461,7 @@ def create_lead_castle(
             castle_dimensions.top.depth,
             castle_dimensions.top.height,
             reg,
-            "mm"
+            "mm",
         )
 
         front_solid = geant4.solid.Box(
@@ -449,13 +470,15 @@ def create_lead_castle(
             castle_dimensions.front.depth,
             castle_dimensions.front.height,
             reg,
-            "mm"
+            "mm",
         )
 
         # Boolean operations to build the final geometry
         # pos_cavity_base: y=(inner_cavity_y/2+(base_y-inner_cavity_y)/4), z=(inner_cavity_z-cavity_z)/2
-        pos_cavity_y = (castle_dimensions.inner_cavity.depth / 2.0 +
-                       (castle_dimensions.base.depth - castle_dimensions.inner_cavity.depth) / 4.0)
+        pos_cavity_y = (
+            castle_dimensions.inner_cavity.depth / 2.0
+            + (castle_dimensions.base.depth - castle_dimensions.inner_cavity.depth) / 4.0
+        )
         pos_cavity_z = (castle_dimensions.inner_cavity.height - castle_dimensions.cavity.height) / 2.0
 
         # Union: inner_cavity + cavity
@@ -464,41 +487,36 @@ def create_lead_castle(
             inner_cavity_solid,
             cavity_solid,
             [[0, 0, 0], [0, pos_cavity_y, pos_cavity_z]],
-            reg
+            reg,
         )
 
         # Subtraction: base - total_cavity
         base_cavity = geant4.solid.Subtraction(
-            "base_cavity_1",
-            base_solid,
-            total_cavity,
-            [[0, 0, 0], [0, 0, 0]],
-            reg
+            "base_cavity_1", base_solid, total_cavity, [[0, 0, 0], [0, 0, 0]], reg
         )
 
-        # pos_top: z=-(base_z+top_z)/2 - 0.01
-        pos_top_z = -(castle_dimensions.base.height + castle_dimensions.top.height) / 2.0 - 0.01
+        # pos_top: z=-(base_z+top_z)/2 - offset
+        # Small offset ensures proper boolean operation overlap
+        pos_top_z = (
+            -(castle_dimensions.base.height + castle_dimensions.top.height) / 2.0
+            - BOOLEAN_OPERATION_OFFSET_MM
+        )
 
         # Union: base_cavity + top
         top_base = geant4.solid.Union(
-            "top_base_1",
-            base_cavity,
-            top_solid,
-            [[0, 0, 0], [0, 0, pos_top_z]],
-            reg
+            "top_base_1", base_cavity, top_solid, [[0, 0, 0], [0, 0, pos_top_z]], reg
         )
 
-        # pos_front: y=(base_y+front_y)/2 - 0.01, z=(base_z-front_z)/2
-        pos_front_y = (castle_dimensions.base.depth + castle_dimensions.front.depth) / 2.0 - 0.01
+        # pos_front: y=(base_y+front_y)/2 - offset, z=(base_z-front_z)/2
+        # Small offset ensures proper boolean operation overlap
+        pos_front_y = (
+            castle_dimensions.base.depth + castle_dimensions.front.depth
+        ) / 2.0 - BOOLEAN_OPERATION_OFFSET_MM
         pos_front_z = (castle_dimensions.base.height - castle_dimensions.front.height) / 2.0
 
         # Union: top_base + front
         final_solid = geant4.solid.Union(
-            "final_lead_castle_1",
-            top_base,
-            front_solid,
-            [[0, 0, 0], [0, pos_front_y, pos_front_z]],
-            reg
+            "final_lead_castle_1", top_base, front_solid, [[0, 0, 0], [0, pos_front_y, pos_front_z]], reg
         )
 
         return geant4.LogicalVolume(final_solid, pb_mat, "Lead_castle", reg)
@@ -670,7 +688,7 @@ def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.L
         2.0 * np.pi,
         reg,
         "mm",
-        "rad"
+        "rad",
     )
 
     return geant4.LogicalVolume(source_plates_solid, pb_mat, "Source_Plates", reg)
@@ -790,10 +808,10 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = True) -> geant4.
         }
         return read_gdml_with_replacements(dummy_gdml_path, replacements)
     # Create cryostat directly with pyg4ometry
-    reg = geant4.Registry()
+    cryostat_registry = geant4.Registry()
 
     # Define EN_AW-2011T8 material (aluminum alloy)
-    en_aw_2011t8 = create_en_aw_2011t8_material(reg)
+    aluminum_alloy_material = create_en_aw_2011t8_material(cryostat_registry)
 
     # Calculate dimensions
     cryostat_height = cryostat_meta.height
@@ -807,13 +825,33 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = True) -> geant4.
         "cryostat",
         0.0,
         2.0 * np.pi,
-        pR=[0.0, cryostat_radius, cryostat_radius, cryostat_cavity_radius,
-            cryostat_cavity_radius, 0.0, 0.0, cryostat_radius, cryostat_radius, 0.0],
-        pZ=[0.0, 0.0, start_cavity_z, start_cavity_z, end_cavity_z,
-            end_cavity_z, end_cavity_z, end_cavity_z, cryostat_height, cryostat_height],
+        pR=[
+            0.0,
+            cryostat_radius,
+            cryostat_radius,
+            cryostat_cavity_radius,
+            cryostat_cavity_radius,
+            0.0,
+            0.0,
+            cryostat_radius,
+            cryostat_radius,
+            0.0,
+        ],
+        pZ=[
+            0.0,
+            0.0,
+            start_cavity_z,
+            start_cavity_z,
+            end_cavity_z,
+            end_cavity_z,
+            end_cavity_z,
+            end_cavity_z,
+            cryostat_height,
+            cryostat_height,
+        ],
         lunit="mm",
         aunit="rad",
-        registry=reg,
+        registry=cryostat_registry,
     )
 
-    return geant4.LogicalVolume(cryostat_solid, en_aw_2011t8, "Cryostat", reg)
+    return geant4.LogicalVolume(cryostat_solid, aluminum_alloy_material, "Cryostat", cryostat_registry)

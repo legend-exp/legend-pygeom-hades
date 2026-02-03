@@ -45,7 +45,9 @@ def create_en_aw_2011t8_material(registry: geant4.Registry) -> geant4.Material:
     pb = geant4.ElementSimple("Lead", "Pb", 82, 207.2)
     bi = geant4.ElementSimple("Bismuth", "Bi", 83, 208.98)
 
-    en_aw_2011t8 = geant4.Material(name="EN_AW-2011T8", density=2.84, number_of_components=4, registry=registry)
+    en_aw_2011t8 = geant4.Material(
+        name="EN_AW-2011T8", density=2.84, number_of_components=4, registry=registry
+    )
     en_aw_2011t8.add_element_massfraction(al, 0.932)
     en_aw_2011t8.add_element_massfraction(cu, 0.06)
     en_aw_2011t8.add_element_massfraction(pb, 0.004)

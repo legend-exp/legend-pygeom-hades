@@ -58,17 +58,7 @@ wrap_lv = create_wrap(wrap_metadata, from_gdml=True)
 wrap_lv = create_wrap(wrap_metadata, from_gdml=False)
 ```
 
-## Equivalence Testing
-
-The package includes comprehensive tests to ensure that GDML and Python implementations produce equivalent geometries. These tests verify:
-
-- Logical volume names match
-- Materials are consistent
-- Both methods produce valid pyg4ometry objects
-
-See `tests/test_gdml_python_equivalence.py` for the full test suite.
-
-## Limitations
+:::{warning}
 
 Some complex geometries remain GDML-only for now:
 
@@ -78,3 +68,5 @@ Some complex geometries remain GDML-only for now:
 - **Source holders**: Various holder configurations for different measurement positions
 
 These can still be used via the GDML implementation (`from_gdml=True`).
+
+:::
