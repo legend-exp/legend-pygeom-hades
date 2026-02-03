@@ -32,15 +32,9 @@ log = logging.getLogger(__name__)
 
 
 DEFAULT_ASSEMBLIES = {
-    "vacuum_cavity",
-    "bottom_plate",
+    "hpge",
     "lead_castle",
-    "cryostat",
-    "holder",
-    "wrap",
-    "detector",
-    # "source",
-    # "source_holder",
+    "source"
 }
 
 
@@ -66,30 +60,15 @@ def _place_pv(
 
 
 def construct(
+    config: str | Mapping,
     assemblies: list[str] | set[str] = DEFAULT_ASSEMBLIES,
     extra_meta: TextDB | Path | str | None = None,
-    config: str | Mapping | None = None,
     public_geometry: bool = False,
 ) -> geant4.Registry:
     """Construct the HADES geometry and return the registry containing the world volume.
 
     Parameters
     ----------
-    assemblies
-        A list of assemblies to construct, should be a subset of:
-        - vacuum_cavity
-        - bottom_plate
-        - lead_castle
-        - cryostat
-        - holder
-        - wrap
-        - detector
-        - source
-        - source_holder
-
-    extra_meta
-        Extra metadata needed to construct the geometry (or a path to it). If
-        `None` then this is taken as `pygeomhades/configs/holder_wrap`.
     config
       configuration dictionary (or file containing it) defining relevant
       parameters of the geometry.
@@ -102,8 +81,17 @@ def construct(
           phi_in_deg: 0.0
           r_in_mm: 86.0
           z_in_mm: 3.0
-        lead_castle: 1
+        lead_castle_idx: 1
 
+    assemblies
+        A list of assemblies to construct, should be a subset of:
+        - hpge: the detector, cryostat, holder and wrap.
+        - lead_castle: the shielding and bottom plate.
+        - source: the source and its holder.
+
+    extra_meta
+        Extra metadata needed to construct the geometry (or a path to it). If
+        `None` then this is taken as `pygeomhades/configs/holder_wrap`.
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
@@ -116,6 +104,8 @@ def construct(
 
     if isinstance(config, str):
         config = dbetto.utils.load_dict(config)
+
+    config = dbetto.AttrsDict(config)
 
     lmeta = None
     if not public_geometry:
@@ -132,15 +122,11 @@ def construct(
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
         lmeta = PublicMetadataProxy()
 
-    if config is None or config == {}:
-        config = {
-            "hpge_name": "V07302A",
-            "lead_castle": 1,
-            "source": "am_collimated",
-            "measurement_type": "top",
-        }
+    if config == {}:
+        msg = "config cannot be empty"
+        raise ValueError(msg)
 
-    hpge_name = config["hpge_name"]
+    hpge_name = config.hpge_name
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
     hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
 
@@ -157,37 +143,39 @@ def construct(
         hpge_meta.type, hpge_meta.production.order, hpge_meta.production.slice
     )
 
-    if "vacuum_cavity" in assemblies:
-        cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
-        _place_pv(cavity_lv, "cavity_pv", world_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
+    cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
+    _place_pv(cavity_lv, "cavity_pv", world_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
 
-    if "wrap" in assemblies:
+    if "hpge" in assemblies:
+
+        # construct the mylar wrap
         wrap_lv = create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
 
         z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
         pv = _place_pv(wrap_lv, "wrap_pv", cavity_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-    if "holder" in assemblies:
+        # construct the holder
         holder_lv = create_holder(hpge_meta.hades.holder.geometry, hpge_meta.type, from_gdml=True)
         z_pos = hpge_meta.hades.holder.position - cryostat_meta.position_cavity_from_top
 
         pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-    if "detector" in assemblies:
+        # construct the hpge
         detector_lv = create_hpge(reg, hpge_meta)
 
         z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
-
         pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos)
 
-    if "cryostat" in assemblies:
+        # construct the cryostat
         cryo_lv = create_cryostat(cryostat_meta, from_gdml=True)
         pv = _place_pv(cryo_lv, "cryo_pv", world_lv, reg)
         reg.addVolumeRecursive(pv)
 
-    if "bottom_plate" in assemblies:
+    if "lead_castle" in assemblies:
+
+        # construct the bottom plate
         plate_meta = dim.get_bottom_plate_metadata()
         plate_lv = create_bottom_plate(plate_meta, from_gdml=True)
 
@@ -195,8 +183,8 @@ def construct(
         pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-    if "lead_castle" in assemblies:
-        table = config["lead_castle"]
+        # construct the lead castle
+        table = config.lead_castle_idx
         castle_dims = dim.get_castle_dimensions(table)
         castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
 
@@ -205,7 +193,7 @@ def construct(
         reg.addVolumeRecursive(pv)
 
     if "source" in assemblies:
-        source_type = config["source"]
+        source_type = config.source
         source_dims = dim.get_source_metadata(source_type)
         holder_dims = {}
 
@@ -214,11 +202,12 @@ def construct(
 
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, z_in_mm=z_pos)
 
-        if config["source"] == "th":
+        if config.source == "th":
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
 
-    if "source_holder" in assemblies:
+        
+        # and construct the source holder
         holder_dims = {}
 
         s_holder_lv = create_source_holder(config, from_gdml=True)

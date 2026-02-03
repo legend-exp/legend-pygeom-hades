@@ -40,7 +40,7 @@ $ legend-pygeom-hades hades.gdml
 
 ## Extra metadata
 
-Some additional metadata is needed to describe the vaccuum cryostat test stand
+Some additional metadata is needed to describe the vacuum cryostat test stand
 geometry. This is described in {doc}`metadata`.
 
 ## Next steps
