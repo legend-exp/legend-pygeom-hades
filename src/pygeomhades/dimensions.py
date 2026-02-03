@@ -47,11 +47,12 @@ def get_cryostat_metadata(det_type: str, order: int, xtal_slice: str) -> AttrsDi
     if det_type == "bege":
         cryostat["height"] = 122.2
         cryostat["width"] = 101.6
-
     elif (det_type == "icpc") and (order in xl_orders):
         cryostat["width"] = 114.3
+        cryostat["height"] = 171.0
     elif det_type == "icpc":
         cryostat["width"] = 101.6
+        cryostat["height"] = 171.0
     else:
         msg = "Only detector type icpc or bege are supported."
         raise ValueError(msg)
