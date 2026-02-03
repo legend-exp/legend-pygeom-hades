@@ -1,5 +1,22 @@
 # Additional metadata
 
+## Public dummy geometry
+
+:::{important}
+
+For using all its features, this package requires a working setup of
+[`legend-metadata`](https://github.com/legend-exp/legend-metadata) (_private
+repository_) before usage. A limited public geometry is also implemented.
+
+:::
+
+In the case this option is used this package contains **detector metadata**
+files. These are based on our
+[public testdata](https://github.com/legend-exp/legend-testdata/tree/main/data/legend/metadata/hardware/detectors/germanium/diodes),
+slightly adjusted to fit our detector units.
+
+## Wrap and holder dimensions
+
 Currently, external metadata describing the dimensions of the holder and wrap of
 each ICPC detector are needed. This is beyond what is currently contained in
 [legend-detectors](https://github.com/legend-exp/legend-detectors). See
@@ -23,3 +40,10 @@ a new JSON file of the dimensions of the holder and wrap with the same structure
 of the other files already existing.
 
 > **Note** This will soon be incorporated into this package.
+
+:::{warning}
+
+In the case that the public geometry option is used, there may be overlaps
+present with the wrap/holder. Use with caution...
+
+:::
