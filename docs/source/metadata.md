@@ -22,4 +22,4 @@ Follow the instructions. In <code>holder_wrap</code> repository, it would create
 a new JSON file of the dimensions of the holder and wrap with the same structure
 of the other files already existing.
 
-> **Note** This will soon be incoporated into this package.
+> **Note** This will soon be incorporated into this package.
