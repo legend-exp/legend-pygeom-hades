@@ -7,15 +7,15 @@ from dbetto import AttrsDict
 from pyg4ometry import geant4
 
 from pygeomhades.materials import (
+    create_aluminum_alloy_material,
     create_aluminum_material,
-    create_en_aw_2011t8_material,
     create_hd1000_material,
 )
 from pygeomhades.utils import read_gdml_with_replacements
 
 # Small offset used in boolean operations to ensure proper overlap/separation
 # This prevents numerical issues in geometry construction
-BOOLEAN_OPERATION_OFFSET_MM = 0.01
+boolean_operation_offset_mm = 0.01
 
 
 def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry) -> geant4.LogicalVolume:
@@ -218,7 +218,7 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
     holder_registry = geant4.Registry()
 
     # Define EN_AW-2011T8 material (aluminum alloy)
-    aluminum_alloy_material = create_en_aw_2011t8_material(holder_registry)
+    aluminum_alloy_material = create_aluminum_alloy_material(holder_registry)
 
     rings = holder_meta["rings"]
     cylinder = holder_meta["cylinder"]
@@ -499,7 +499,7 @@ def create_lead_castle(
         # Small offset ensures proper boolean operation overlap
         pos_top_z = (
             -(castle_dimensions.base.height + castle_dimensions.top.height) / 2.0
-            - BOOLEAN_OPERATION_OFFSET_MM
+            - boolean_operation_offset_mm
         )
 
         # Union: base_cavity + top
@@ -511,7 +511,7 @@ def create_lead_castle(
         # Small offset ensures proper boolean operation overlap
         pos_front_y = (
             castle_dimensions.base.depth + castle_dimensions.front.depth
-        ) / 2.0 - BOOLEAN_OPERATION_OFFSET_MM
+        ) / 2.0 - boolean_operation_offset_mm
         pos_front_z = (castle_dimensions.base.height - castle_dimensions.front.height) / 2.0
 
         # Union: top_base + front
@@ -811,7 +811,7 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = True) -> geant4.
     cryostat_registry = geant4.Registry()
 
     # Define EN_AW-2011T8 material (aluminum alloy)
-    aluminum_alloy_material = create_en_aw_2011t8_material(cryostat_registry)
+    aluminum_alloy_material = create_aluminum_alloy_material(cryostat_registry)
 
     # Calculate dimensions
     cryostat_height = cryostat_meta.height

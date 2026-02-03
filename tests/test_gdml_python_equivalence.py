@@ -43,6 +43,10 @@ def test_wrap_equivalence():
     # Both should have the same material
     assert wrap_lv_gdml.material.name == wrap_lv_python.material.name == "HD1000"
 
+    # Both solids should be polycone types (GDML creates Polycone, Python creates GenericPolycone)
+    assert "Polycone" in type(wrap_lv_gdml.solid).__name__
+    assert "Polycone" in type(wrap_lv_python.solid).__name__
+
 
 def test_cryostat_equivalence():
     """Test that cryostat geometry is equivalent between GDML and Python."""
@@ -64,6 +68,10 @@ def test_cryostat_equivalence():
 
     assert cryo_lv_gdml.name == cryo_lv_python.name == "Cryostat"
     assert cryo_lv_gdml.material.name == cryo_lv_python.material.name == "EN_AW-2011T8"
+
+    # Both solids should be polycone types
+    assert "Polycone" in type(cryo_lv_gdml.solid).__name__
+    assert "Polycone" in type(cryo_lv_python.solid).__name__
 
 
 def test_bottom_plate_equivalence():
@@ -90,6 +98,10 @@ def test_bottom_plate_equivalence():
     assert plate_lv_gdml.name == plate_lv_python.name == "Bottom_plate"
     assert plate_lv_gdml.material.name == plate_lv_python.material.name == "Al"
 
+    # Both solids should be the same type (Subtraction)
+    assert type(plate_lv_gdml.solid).__name__ == type(plate_lv_python.solid).__name__
+    assert "Subtraction" in type(plate_lv_gdml.solid).__name__
+
 
 def test_th_plate_equivalence():
     """Test that th plate geometry is equivalent between GDML and Python."""
@@ -105,6 +117,26 @@ def test_th_plate_equivalence():
     # Both should use lead material
     assert "Pb" in th_plate_lv_gdml.material.name
     assert "Pb" in th_plate_lv_python.material.name
+
+    # Both solids should be tube types (Tubs)
+    assert "Tubs" in type(th_plate_lv_gdml.solid).__name__
+    assert "Tubs" in type(th_plate_lv_python.solid).__name__
+
+    # Check tube parameters (rmin, rmax, z)
+    # Note: GDML may use expression objects, so we check the evaluated values
+    solid_gdml = th_plate_lv_gdml.solid
+    solid_python = th_plate_lv_python.solid
+
+    # Both should have the same inner and outer radii (compare as floats)
+    assert float(solid_gdml.pRMin.eval() if hasattr(solid_gdml.pRMin, "eval") else solid_gdml.pRMin) == float(
+        solid_python.pRMin
+    )
+    assert float(solid_gdml.pRMax.eval() if hasattr(solid_gdml.pRMax, "eval") else solid_gdml.pRMax) == float(
+        solid_python.pRMax
+    )
+    assert float(solid_gdml.pDz.eval() if hasattr(solid_gdml.pDz, "eval") else solid_gdml.pDz) == float(
+        solid_python.pDz
+    )
 
 
 def test_bege_holder_equivalence():
@@ -152,6 +184,10 @@ def test_bege_holder_equivalence():
     assert lv_gdml.name == lv_python.name == "Holder"
     assert lv_gdml.material.name == lv_python.material.name == "EN_AW-2011T8"
 
+    # Both solids should be polycone types
+    assert "Polycone" in type(lv_gdml.solid).__name__
+    assert "Polycone" in type(lv_python.solid).__name__
+
 
 def test_lead_castle_table1_equivalence():
     """Test that lead castle table 1 geometry is equivalent between GDML and Python."""
@@ -175,3 +211,7 @@ def test_lead_castle_table1_equivalence():
     # Both should use lead material
     assert "Pb" in castle_lv_gdml.material.name
     assert "Pb" in castle_lv_python.material.name
+
+    # Both solids should be the same type (Union for lead castle)
+    assert type(castle_lv_gdml.solid).__name__ == type(castle_lv_python.solid).__name__
+    assert "Union" in type(castle_lv_gdml.solid).__name__

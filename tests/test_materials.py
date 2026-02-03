@@ -5,8 +5,8 @@ from __future__ import annotations
 from pyg4ometry import geant4
 
 from pygeomhades.materials import (
+    create_aluminum_alloy_material,
     create_aluminum_material,
-    create_en_aw_2011t8_material,
     create_hd1000_material,
 )
 
@@ -21,10 +21,10 @@ def test_create_hd1000_material():
     assert material.density == 0.93
 
 
-def test_create_en_aw_2011t8_material():
-    """Test that create_en_aw_2011t8_material returns a valid material."""
+def test_create_aluminum_alloy_material():
+    """Test that create_aluminum_alloy_material returns a valid material."""
     reg = geant4.Registry()
-    material = create_en_aw_2011t8_material(reg)
+    material = create_aluminum_alloy_material(reg)
 
     assert isinstance(material, geant4.Material)
     assert material.name == "EN_AW-2011T8"

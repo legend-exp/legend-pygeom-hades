@@ -28,7 +28,7 @@ def create_hd1000_material(registry: geant4.Registry) -> geant4.Material:
     return hd1000
 
 
-def create_en_aw_2011t8_material(registry: geant4.Registry) -> geant4.Material:
+def create_aluminum_alloy_material(registry: geant4.Registry) -> geant4.Material:
     """Create EN_AW-2011T8 material (aluminum alloy).
 
     Parameters
