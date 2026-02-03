@@ -6,7 +6,6 @@ import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from pygeomhades import dimensions as dim
 from pygeomhades.utils import read_gdml_with_replacements
 
 
@@ -15,7 +14,7 @@ def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry
 
     Parameters
     ----------
-    cryostat
+    cryostat_metadata
         The dimensions of the various parts of the cryostat, should have
         the following format
 
@@ -59,7 +58,7 @@ def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry
 def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.LogicalVolume:
     """Create the mylar wrap.
 
-    :: warning
+    .. warning::
 
         The returned logical volume belongs to its own registry,
         it is necessary to call {func}`reg.addVolumeRecursive` on
@@ -230,7 +229,7 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
 
 
 def create_lead_castle(
-    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True
+    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True, volume_name: str = "Lead_castle"
 ) -> geant4.LogicalVolume:
     """Create the lead castle.
 
@@ -251,6 +250,8 @@ def create_lead_castle(
                 height: 100
                 depth: 100
                 width: 100
+    volume_name
+        Which volume to extract, defaults to "Lead_castle".
 
     from_gdml
         Whether to construct from a GDML file
@@ -261,7 +262,7 @@ def create_lead_castle(
         raise NotImplementedError(msg)
 
     if table_num not in [1, 2]:
-        msg = f"Table number must be 1 or 2 not {table_num}"
+        msg = f"Table number must be 1 or 2, not {table_num}"
         raise ValueError(msg)
 
     dummy_gdml_path = (
@@ -303,7 +304,7 @@ def create_lead_castle(
             "copper_plate_height": castle_dimensions.copper_plate.height,
         }
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name="Lead_castle")
+    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name=volume_name)
 
 
 def create_source(
@@ -458,7 +459,7 @@ def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.L
 
 
 def create_source_holder(
-    source_type: str, holder_dims: AttrsDict, meas_type: str = "lat", from_gdml: bool = True
+    source_type: str, holder_dims: AttrsDict, source_z: float, meas_type: str = "lat", from_gdml: bool = True
 ) -> geant4.LogicalVolume:
     """Get the source holder geometry.
 
@@ -470,6 +471,7 @@ def create_source_holder(
         The dimensions of the source holder, should be of the format:
 
         .. code-block:: yaml
+
             source:
                 top_plate_height: 10.0
                 top_plate_width: 10.0
@@ -480,8 +482,11 @@ def create_source_holder(
             outer_width: 100.0
             inner_width: 10.0
 
+
     meas_type
         The measurement type (for th only) either lat or top.
+    source_z
+        The z position of the source from the cryostat bottom.
     from_gdml
         Whether to construct from a GDML file
     """
@@ -516,7 +521,7 @@ def create_source_holder(
             "source_holder_inner_width": source_holder.inner_width,
             "source_holder_bottom_inner_width": source_holder.source.bottom_inner_width,
             "source_holder_outer_width": source_holder.outer_width,
-            "position_source_fromcryostat_z": dim.positions_from_cryostat.source.z,
+            "position_source_fromcryostat_z": source_z,
         }
 
     elif source_type == "am":
@@ -524,7 +529,7 @@ def create_source_holder(
 
         replacements = {
             "source_holder_top_height": source_holder.source.top_height,
-            "position_source_fromcryostat_z": dim.positions_from_cryostat.source.z,
+            "position_source_fromcryostat_z": source_z,
             "source_holder_top_plate_height": source_holder.source.top_plate_height,
             "source_holder_top_plate_width": source_holder.source.top_plate_width,
             "source_holder_top_plate_depth": source_holder.source.top_plate_depth,

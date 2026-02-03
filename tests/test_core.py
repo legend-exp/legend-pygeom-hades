@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 import pygeomtools
+import pytest
 from pyg4ometry import geant4
 
 from pygeomhades.core import construct
@@ -40,3 +41,17 @@ def test_construct():
     )
     assert isinstance(reg, geant4.Registry)
     pygeomtools.geometry.check_registry_sanity(reg, reg)
+
+    with pytest.raises(NotImplementedError):
+        # test for source assembly (not yet verified)
+        _ = construct(
+            config={
+                "hpge_name": "B00000B",
+                "lead_castle_idx": 1,
+                "source": "am_collimated",
+                "measurement_type": "top",
+            },
+            assemblies=["hpge", "lead_castle", "source"],
+            public_geometry=True,
+            construct_unverified=False,
+        )

@@ -43,7 +43,7 @@ def test_create_wrap():
     assert isinstance(wrap_lv, geant4.LogicalVolume)
 
     with pytest.raises(NotImplementedError):
-        wrap_lv = create_wrap(wrap_metadata, from_gdml=False)
+        _ = create_wrap(wrap_metadata, from_gdml=False)
 
 
 def test_create_holder():
@@ -89,4 +89,4 @@ def test_create_holder():
     assert isinstance(lv, geant4.LogicalVolume)
 
     with pytest.raises(NotImplementedError):
-        lv = create_holder(holder, "bege", from_gdml=False)
+        _ = create_holder(holder, "bege", from_gdml=False)

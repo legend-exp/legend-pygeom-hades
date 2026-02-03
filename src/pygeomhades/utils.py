@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 
 def merge_configs(diode_meta: AttrsDict, extra_meta: Mapping, *, extra_name: str = "hades") -> AttrsDict:
-    """Merge the configs from `lmeta` to the extra information
-    provided in `config`.
+    """Merge the configs from `diode_meta` to the extra information
+    provided in `extra_meta`.
 
     This also adds the needed `enrichment` value if this is not present.
 
@@ -51,7 +51,7 @@ def read_gdml_with_replacements(
     gdml_text = dummy_gdml_path.read_text()
 
     for key, val in replacements.items():
-        gdml_text = gdml_text.replace(key, f"{val:.{1}f}")
+        gdml_text = gdml_text.replace(key, f"{val:.1f}")
 
     with tempfile.NamedTemporaryFile("w+", suffix=".gdml") as f:
         f.write(gdml_text)
