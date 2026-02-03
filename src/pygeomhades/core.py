@@ -72,7 +72,7 @@ def construct(
 
       .. code-block:: yaml
 
-        detector: V07302A
+        hpge_name: V07302A
         measurement: am_HS1_top_dlt
         source_position:
           phi_in_deg: 0.0
