@@ -6,6 +6,11 @@ import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
+from pygeomhades.materials import (
+    create_aluminum_material,
+    create_en_aw_2011t8_material,
+    create_hd1000_material,
+)
 from pygeomhades.utils import read_gdml_with_replacements
 
 
@@ -90,38 +95,32 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
             "wrap_inner_radius_in_mm": wrap_metadata.inner.radius_in_mm,
             "wrap_top_thickness_in_mm": wrap_metadata.outer.height_in_mm - wrap_metadata.inner.height_in_mm,
         }
-        wrap_lv = read_gdml_with_replacements(dummy_gdml_path, replacements)
-    else:
-        # Create wrap directly with pyg4ometry
-        reg = geant4.Registry()
+        return read_gdml_with_replacements(dummy_gdml_path, replacements)
 
-        # Define HD1000 material (polyethylene-like)
-        h = geant4.ElementSimple("Hydrogen", "H", 1, 1.0)
-        c = geant4.ElementSimple("Carbon", "C", 6, 12.01)
-        hd1000 = geant4.Material(name="HD1000", density=0.93, number_of_components=2, registry=reg)
-        hd1000.add_element_massfraction(h, 4.0 / (4.0 + 2.0 * 12.01))
-        hd1000.add_element_massfraction(c, 2.0 * 12.01 / (4.0 + 2.0 * 12.01))
+    # Create wrap directly with pyg4ometry
+    reg = geant4.Registry()
 
-        # Create polycone solid
-        wrap_outer_height = wrap_metadata.outer.height_in_mm
-        wrap_outer_radius = wrap_metadata.outer.radius_in_mm
-        wrap_inner_radius = wrap_metadata.inner.radius_in_mm
-        wrap_top_thickness = wrap_outer_height - wrap_metadata.inner.height_in_mm
+    # Define HD1000 material (polyethylene-like)
+    hd1000 = create_hd1000_material(reg)
 
-        wrap_solid = geant4.solid.GenericPolycone(
-            "wrap",
-            0.0,
-            2.0 * np.pi,
-            pR=[0.0, wrap_outer_radius, wrap_outer_radius, wrap_inner_radius, wrap_inner_radius],
-            pZ=[0.0, 0.0, wrap_top_thickness, wrap_top_thickness, wrap_outer_height],
-            lunit="mm",
-            aunit="rad",
-            registry=reg,
-        )
+    # Create polycone solid
+    wrap_outer_height = wrap_metadata.outer.height_in_mm
+    wrap_outer_radius = wrap_metadata.outer.radius_in_mm
+    wrap_inner_radius = wrap_metadata.inner.radius_in_mm
+    wrap_top_thickness = wrap_outer_height - wrap_metadata.inner.height_in_mm
 
-        wrap_lv = geant4.LogicalVolume(wrap_solid, hd1000, "Wrap", reg)
+    wrap_solid = geant4.solid.GenericPolycone(
+        "wrap",
+        0.0,
+        2.0 * np.pi,
+        pR=[0.0, wrap_outer_radius, wrap_outer_radius, wrap_inner_radius, wrap_inner_radius],
+        pZ=[0.0, 0.0, wrap_top_thickness, wrap_top_thickness, wrap_outer_height],
+        lunit="mm",
+        aunit="rad",
+        registry=reg,
+    )
 
-    return wrap_lv
+    return geant4.LogicalVolume(wrap_solid, hd1000, "Wrap", reg)
 
 
 def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True) -> geant4.LogicalVolume:
@@ -213,16 +212,7 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
     reg = geant4.Registry()
 
     # Define EN_AW-2011T8 material (aluminum alloy)
-    al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
-    cu = geant4.ElementSimple("Copper", "Cu", 29, 63.546)
-    pb = geant4.ElementSimple("Lead", "Pb", 82, 207.2)
-    bi = geant4.ElementSimple("Bismuth", "Bi", 83, 208.98)
-
-    en_aw_2011t8 = geant4.Material(name="EN_AW-2011T8", density=2.84, number_of_components=4, registry=reg)
-    en_aw_2011t8.add_element_massfraction(al, 0.932)
-    en_aw_2011t8.add_element_massfraction(cu, 0.06)
-    en_aw_2011t8.add_element_massfraction(pb, 0.004)
-    en_aw_2011t8.add_element_massfraction(bi, 0.004)
+    en_aw_2011t8 = create_en_aw_2011t8_material(reg)
 
     rings = holder_meta["rings"]
     cylinder = holder_meta["cylinder"]
@@ -300,9 +290,7 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
     reg = geant4.Registry()
 
     # Define aluminum material
-    al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
-    al_mat = geant4.Material(name="Al", density=2.7, number_of_components=1, registry=reg)
-    al_mat.add_element_massfraction(al, 1.0)
+    al_mat = create_aluminum_material(reg)
 
     # Create bottom plate box
     bottom_plate_solid = geant4.solid.Box(
@@ -805,16 +793,7 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = True) -> geant4.
     reg = geant4.Registry()
 
     # Define EN_AW-2011T8 material (aluminum alloy)
-    al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
-    cu = geant4.ElementSimple("Copper", "Cu", 29, 63.546)
-    pb = geant4.ElementSimple("Lead", "Pb", 82, 207.2)
-    bi = geant4.ElementSimple("Bismuth", "Bi", 83, 208.98)
-
-    en_aw_2011t8 = geant4.Material(name="EN_AW-2011T8", density=2.84, number_of_components=4, registry=reg)
-    en_aw_2011t8.add_element_massfraction(al, 0.932)
-    en_aw_2011t8.add_element_massfraction(cu, 0.06)
-    en_aw_2011t8.add_element_massfraction(pb, 0.004)
-    en_aw_2011t8.add_element_massfraction(bi, 0.004)
+    en_aw_2011t8 = create_en_aw_2011t8_material(reg)
 
     # Calculate dimensions
     cryostat_height = cryostat_meta.height

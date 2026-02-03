@@ -2,7 +2,7 @@
 
 As of the recent update, pygeomhades supports two methods for constructing geometry components:
 
-1. **GDML-based**: The traditional method that reads GDML template files and performs string replacements
+1. **GDML-based**: The original method that reads GDML template files and performs string replacements
 2. **Python-based**: A new direct implementation using pyg4ometry's Python API
 
 ## Motivation
@@ -78,60 +78,3 @@ Some complex geometries remain GDML-only for now:
 - **Source holders**: Various holder configurations for different measurement positions
 
 These can still be used via the GDML implementation (`from_gdml=True`).
-
-## Future Work
-
-The Python implementations can be extended to cover remaining components:
-
-1. ICPC holder geometry
-2. Lead castle table 2
-3. Source geometries for all types
-4. Source holder variants
-
-Contributions are welcome!
-
-## Implementation Details
-
-The Python implementations use pyg4ometry primitives:
-
-- **Materials**: Created using `geant4.Material` with element composition
-- **Solids**: `Box`, `Tubs`, `GenericPolycone` for shapes
-- **Boolean operations**: `Union`, `Subtraction` for complex shapes
-- **Logical volumes**: `geant4.LogicalVolume` to combine solids and materials
-
-Example of material creation:
-
-```python
-# Define aluminum alloy EN_AW-2011T8
-al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
-cu = geant4.ElementSimple("Copper", "Cu", 29, 63.546)
-pb = geant4.ElementSimple("Lead", "Pb", 82, 207.2)
-bi = geant4.ElementSimple("Bismuth", "Bi", 83, 208.98)
-
-en_aw_2011t8 = geant4.Material(
-    name="EN_AW-2011T8", 
-    density=2.84, 
-    number_of_components=4, 
-    registry=reg
-)
-en_aw_2011t8.add_element_massfraction(al, 0.932)
-en_aw_2011t8.add_element_massfraction(cu, 0.06)
-en_aw_2011t8.add_element_massfraction(pb, 0.004)
-en_aw_2011t8.add_element_massfraction(bi, 0.004)
-```
-
-Example of polycone creation:
-
-```python
-# Create a polycone by tracing the outline
-holder_solid = geant4.solid.GenericPolycone(
-    "holder",
-    0.0,  # start phi
-    2.0 * np.pi,  # delta phi
-    pR=[...],  # radii at each point
-    pZ=[...],  # z positions at each point
-    lunit="mm",
-    aunit="rad",
-    registry=reg,
-)
-```
