@@ -31,11 +31,7 @@ from pygeomhades.utils import merge_configs
 log = logging.getLogger(__name__)
 
 
-DEFAULT_ASSEMBLIES = {
-    "hpge",
-    "lead_castle",
-    "source"
-}
+DEFAULT_ASSEMBLIES = {"hpge", "lead_castle", "source"}
 
 
 def _place_pv(
@@ -147,7 +143,6 @@ def construct(
     _place_pv(cavity_lv, "cavity_pv", world_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
 
     if "hpge" in assemblies:
-
         # construct the mylar wrap
         wrap_lv = create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
 
@@ -174,7 +169,6 @@ def construct(
         reg.addVolumeRecursive(pv)
 
     if "lead_castle" in assemblies:
-
         # construct the bottom plate
         plate_meta = dim.get_bottom_plate_metadata()
         plate_lv = create_bottom_plate(plate_meta, from_gdml=True)
@@ -206,7 +200,6 @@ def construct(
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
 
-        
         # and construct the source holder
         holder_dims = {}
 
