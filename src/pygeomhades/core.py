@@ -212,14 +212,14 @@ def construct(
         source_dims = dim.get_source_metadata(source_type)
         holder_dims = dim.get_source_holder_metadata(source_type, position)
 
-        source_lv = create_source(source_type, holder_dims, meas_type=position, from_gdml=True)
+        source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
         z_pos = hpge_meta.hades.source.z.position
 
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
         # construct th plate if needed
-        if config.source == "th":
+        if source_type == "th":
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
             reg.addVolumeRecursive(pv)

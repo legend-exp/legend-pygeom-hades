@@ -61,7 +61,7 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
     .. warning::
 
         The returned logical volume belongs to its own registry,
-        it is necessary to call {func}`reg.addVolumeRecursive` on
+        it is necessary to call :func:`reg.addVolumeRecursive` on
         the produced PhysicalVolume to get a sane registry.
 
     Parameters
@@ -359,7 +359,7 @@ def create_source(
             offset_height: 0.0
 
     holder_dims
-        Dimensions of the source holder (see {func}`get_source_holder`).
+        Dimensions of the source holder (see :func:`get_source_holder`).
 
     from_gdml
         Whether to construct from a GDML file
@@ -371,57 +371,53 @@ def create_source(
 
     dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / f"source_{source_type}_dummy.gdml"
 
-    source = source_dims
-
     if source_type == "am_collimated":
         replacements = {
-            "source_height": source.height,
-            "source_width": source.width,
-            "source_capsule_height": source.capsule.height,
-            "source_capsule_width": source.capsule.width,
-            "window_source": source.collimator.window,
-            "collimator_height": source.collimator.height,
-            "collimator_depth": source.collimator.depth,
-            "collimator_width": source.collimator.width,
-            "collimator_beam_height": source.collimator.beam_height,
-            "collimator_beam_width": source.collimator.beam_width,
+            "source_height": source_dims.height,
+            "source_width": source_dims.width,
+            "source_capsule_height": source_dims.capsule.height,
+            "source_capsule_width": source_dims.capsule.width,
+            "window_source": source_dims.collimator.window,
+            "collimator_height": source_dims.collimator.height,
+            "collimator_depth": source_dims.collimator.depth,
+            "collimator_width": source_dims.collimator.width,
+            "collimator_beam_height": source_dims.collimator.beam_height,
+            "collimator_beam_width": source_dims.collimator.beam_width,
         }
 
     elif source_type == "am":
         replacements = {
-            "source_height": source.height,
-            "source_width": source.width,
-            "source_capsule_height": source.capsule.height,
-            "source_capsule_width": source.capsule.width,
-            "source_capsule_depth": source.capsule.depth,
+            "source_height": source_dims.height,
+            "source_width": source_dims.width,
+            "source_capsule_height": source_dims.capsule.height,
+            "source_capsule_width": source_dims.capsule.width,
+            "source_capsule_depth": source_dims.capsule.depth,
         }
 
     elif source_type in ["ba", "co"]:
         replacements = {
-            "source_height": source.height,
-            "source_width": source.width,
-            "source_foil_height": source.foil.height,
-            "source_Alring_height": source.al_ring.height,
-            "source_Alring_width_min": source.al_ring.width_min,
-            "source_Alring_width_max": source.al_ring.width_max,
+            "source_height": source_dims.height,
+            "source_width": source_dims.width,
+            "source_foil_height": source_dims.foil.height,
+            "source_Alring_height": source_dims.al_ring.height,
+            "source_Alring_width_min": source_dims.al_ring.width_min,
+            "source_Alring_width_max": source_dims.al_ring.width_max,
         }
 
     elif source_type == "th":
-        source_holder = holder_dims
-
         replacements = {
-            "source_height": source.height,
-            "source_width": source.width,
-            "source_capsule_height": source.capsule.height,
-            "source_capsule_width": source.capsule.width,
-            "source_epoxy_height": source.epoxy.height,
-            "source_epoxy_width": source.epoxy.width,
-            "CuSource_holder_height": source_holder.copper.height,
-            "CuSource_holder_width": source_holder.copper.width,
-            "CuSource_holder_cavity_width": source_holder.copper.cavity_width,
-            "CuSource_holder_bottom_height": source_holder.copper.bottom_height,
-            "CuSource_holder_bottom_width": source_holder.copper.bottom_width,
-            "source_offset_height": source.offset_height,
+            "source_height": source_dims.height,
+            "source_width": source_dims.width,
+            "source_capsule_height": source_dims.capsule.height,
+            "source_capsule_width": source_dims.capsule.width,
+            "source_epoxy_height": source_dims.epoxy.height,
+            "source_epoxy_width": source_dims.epoxy.width,
+            "CuSource_holder_height": holder_dims.copper.height,
+            "CuSource_holder_width": holder_dims.copper.width,
+            "CuSource_holder_cavity_width": holder_dims.copper.cavity_width,
+            "CuSource_holder_bottom_height": holder_dims.copper.bottom_height,
+            "CuSource_holder_bottom_width": holder_dims.copper.bottom_width,
+            "source_offset_height": source_dims.offset_height,
         }
 
     else:
@@ -437,7 +433,7 @@ def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.L
     Parameters
     ----------
     source_dims
-        See {func}`create_source` for more information.
+        See :func:`create_source` for more information.
     from_gdml
         Whether to construct from a GDML file
 
@@ -554,7 +550,7 @@ def create_cryostat(cryostat_meta: AttrsDict, from_gdml: bool = True) -> geant4.
     Parameters
     ----------
     cryostat_meta
-        Metadata describing the cryostat geometry (see {func}`create_wrap`) for details.
+        Metadata describing the cryostat geometry (see :func:`create_wrap`) for details.
     from_gdml
         Whether to construct from a GDML file
 

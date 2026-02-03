@@ -20,7 +20,8 @@ def parse_measurement(measurement: str) -> AttrsDict:
     For more details see [link](https://legend-exp.atlassian.net/wiki/spaces/LEGEND/pages/1826750480/Analysis+of+characterization+data+WIP).
 
 
-    ... warning
+    .. warning::
+
         In the case of the "source" being "am", for compatibility
         with the rest of the codebase if the source is colimated (HS1) the source name is
         "am_collimated".
