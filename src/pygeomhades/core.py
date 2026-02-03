@@ -190,6 +190,9 @@ def construct(
         pv = _place_pv(castle_lv, "castle_pv", world_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
+        msg = "For the lead castle the copper plate is not implemented!"
+        log.warning(msg)
+
     if "source" in assemblies:
         if not construct_unverified:
             msg = (
@@ -206,7 +209,7 @@ def construct(
         source_dims = dim.get_source_metadata(source_type)
         holder_dims = dim.get_source_holder_metadata(source_type, measurement)
 
-        source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
+        source_lv = create_source(source_type, holder_dims, meas_type=measurement, from_gdml=True)
         z_pos = hpge_meta.hades.source.z.position
 
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, z_in_mm=z_pos)
@@ -218,7 +221,13 @@ def construct(
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
             reg.addVolumeRecursive(pv)
 
-        s_holder_lv = create_source_holder(source_type, holder_dims, measurement, from_gdml=True)
+        s_holder_lv = create_source_holder(
+            source_type,
+            holder_dims,
+            source_z=hpge_meta.hades.source.z.position,
+            meas_type=measurement,
+            from_gdml=True,
+        )
 
         # TODO: this will break so we need to change it
         z_pos = -(hpge_meta.hades.source.z.position + holder_dims.source.top_plate_height / 2)
