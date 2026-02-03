@@ -163,55 +163,104 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
 
     """
 
-    if not from_gdml:
-        msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
+    if from_gdml:
+        if det_type == "icpc":
+            dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_icpc_dummy.gdml"
 
-    if det_type == "icpc":
-        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_icpc_dummy.gdml"
+            rings = holder_meta["rings"]
+            cylinder = holder_meta["cylinder"]
+            bottom_cylinder = holder_meta["bottom_cyl"]
 
-        rings = holder_meta["rings"]
-        cylinder = holder_meta["cylinder"]
-        bottom_cylinder = holder_meta["bottom_cyl"]
+            replacements = {
+                "max_radius_in_mm": rings.radius_in_mm,
+                "outer_height_in_mm": cylinder.outer.height_in_mm,
+                "inner_height_in_mm": cylinder.inner.height_in_mm,
+                "outer_radius_in_mm": cylinder.outer.radius_in_mm,
+                "inner_radius_in_mm": cylinder.inner.radius_in_mm,
+                "outer_bottom_cyl_radius_in_mm": bottom_cylinder.outer.radius_in_mm,
+                "inner_bottom_cyl_radius_in_mm": bottom_cylinder.inner.radius_in_mm,
+                "edge_height_in_mm": holder_meta.edge.height_in_mm,
+                "pos_top_ring_in_mm": rings.position_top_ring_in_mm,
+                "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
+                "end_top_ring_in_mm": rings.position_top_ring_in_mm + rings.height_in_mm,
+                "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm + rings.height_in_mm,
+                "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm + bottom_cylinder.outer.height_in_mm,
+                "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm + bottom_cylinder.inner.height_in_mm,
+            }
 
-        replacements = {
-            "max_radius_in_mm": rings.radius_in_mm,
-            "outer_height_in_mm": cylinder.outer.height_in_mm,
-            "inner_height_in_mm": cylinder.inner.height_in_mm,
-            "outer_radius_in_mm": cylinder.outer.radius_in_mm,
-            "inner_radius_in_mm": cylinder.inner.radius_in_mm,
-            "outer_bottom_cyl_radius_in_mm": bottom_cylinder.outer.radius_in_mm,
-            "inner_bottom_cyl_radius_in_mm": bottom_cylinder.inner.radius_in_mm,
-            "edge_height_in_mm": holder_meta.edge.height_in_mm,
-            "pos_top_ring_in_mm": rings.position_top_ring_in_mm,
-            "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
-            "end_top_ring_in_mm": rings.position_top_ring_in_mm + rings.height_in_mm,
-            "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm + rings.height_in_mm,
-            "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm + bottom_cylinder.outer.height_in_mm,
-            "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm + bottom_cylinder.inner.height_in_mm,
-        }
+        elif det_type == "bege":
+            dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_bege_dummy.gdml"
 
-    elif det_type == "bege":
-        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_bege_dummy.gdml"
+            rings = holder_meta["rings"]
+            cylinder = holder_meta["cylinder"]
+            bottom_cylinder = holder_meta["bottom_cyl"]
 
-        rings = holder_meta["rings"]
-        cylinder = holder_meta["cylinder"]
-        bottom_cylinder = holder_meta["bottom_cyl"]
+            replacements = {
+                "max_radius_in_mm": rings.radius_in_mm,
+                "outer_height_in_mm": cylinder.outer.height_in_mm,
+                "inner_height_in_mm": cylinder.inner.height_in_mm,
+                "outer_radius_in_mm": cylinder.outer.radius_in_mm,
+                "inner_radius_in_mm": cylinder.inner.radius_in_mm,
+                "position_top_ring_in_mm": rings.position_top_ring_in_mm,
+                "end_top_ring_in_mm": rings.height_in_mm + rings.position_top_ring_in_mm,
+            }
+        else:
+            msg = "cannot construct geometry for coax or ppc"
+            raise NotImplementedError(msg)
 
-        replacements = {
-            "max_radius_in_mm": rings.radius_in_mm,
-            "outer_height_in_mm": cylinder.outer.height_in_mm,
-            "inner_height_in_mm": cylinder.inner.height_in_mm,
-            "outer_radius_in_mm": cylinder.outer.radius_in_mm,
-            "inner_radius_in_mm": cylinder.inner.radius_in_mm,
-            "position_top_ring_in_mm": rings.position_top_ring_in_mm,
-            "end_top_ring_in_mm": rings.height_in_mm + rings.position_top_ring_in_mm,
-        }
+        return read_gdml_with_replacements(dummy_gdml_path, replacements)
     else:
-        msg = "cannot construct geometry for coax or ppc"
-        raise NotImplementedError(msg)
-
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+        # Create holder directly with pyg4ometry
+        reg = geant4.Registry()
+        
+        # Define EN_AW-2011T8 material (aluminum alloy)
+        al = geant4.ElementSimple("Aluminium", "Al", 13, 26.98)
+        cu = geant4.ElementSimple("Copper", "Cu", 29, 63.546)
+        pb = geant4.ElementSimple("Lead", "Pb", 82, 207.2)
+        bi = geant4.ElementSimple("Bismuth", "Bi", 83, 208.98)
+        
+        en_aw_2011t8 = geant4.Material(name="EN_AW-2011T8", density=2.84, number_of_components=4, registry=reg)
+        en_aw_2011t8.add_element_massfraction(al, 0.932)
+        en_aw_2011t8.add_element_massfraction(cu, 0.06)
+        en_aw_2011t8.add_element_massfraction(pb, 0.004)
+        en_aw_2011t8.add_element_massfraction(bi, 0.004)
+        
+        rings = holder_meta["rings"]
+        cylinder = holder_meta["cylinder"]
+        
+        if det_type == "bege":
+            # Create polycone for bege holder
+            # Trace the outline: outer edge going up, then inner edge going down
+            max_radius = rings.radius_in_mm
+            outer_height = cylinder.outer.height_in_mm
+            inner_height = cylinder.inner.height_in_mm
+            outer_radius = cylinder.outer.radius_in_mm
+            inner_radius = cylinder.inner.radius_in_mm
+            pos_top_ring_z = rings.position_top_ring_in_mm
+            end_top_ring_z = rings.height_in_mm + rings.position_top_ring_in_mm
+            
+            holder_solid = geant4.solid.GenericPolycone(
+                "holder",
+                0.0,
+                2.0 * np.pi,
+                pR=[outer_radius, outer_radius, max_radius, max_radius, outer_radius, 
+                    outer_radius, outer_radius, 0.0, 0.0, inner_radius, 
+                    inner_radius, inner_radius, inner_radius],
+                pZ=[0.0, pos_top_ring_z, pos_top_ring_z, end_top_ring_z, end_top_ring_z,
+                    inner_height, outer_height, outer_height, inner_height, inner_height,
+                    end_top_ring_z, pos_top_ring_z, 0.0],
+                lunit="mm",
+                aunit="rad",
+                registry=reg,
+            )
+        elif det_type == "icpc":
+            msg = "ICPC holder python implementation not yet complete - use from_gdml=True"
+            raise NotImplementedError(msg)
+        else:
+            msg = "cannot construct geometry for coax or ppc"
+            raise NotImplementedError(msg)
+        
+        return geant4.LogicalVolume(holder_solid, en_aw_2011t8, "Holder", reg)
 
 
 def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> geant4.Registry:
@@ -319,54 +368,159 @@ def create_lead_castle(
         Whether to construct from a GDML file
     """
 
-    if not from_gdml:
-        msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
-
     if table_num not in [1, 2]:
         msg = f"Table number must be 1 or 2, not {table_num}"
         raise ValueError(msg)
 
-    dummy_gdml_path = (
-        resources.files("pygeomhades") / "models" / "dummy" / f"lead_castle_table{table_num}_dummy.gdml"
-    )
+    if from_gdml:
+        dummy_gdml_path = (
+            resources.files("pygeomhades") / "models" / "dummy" / f"lead_castle_table{table_num}_dummy.gdml"
+        )
 
-    if table_num == 1:
-        replacements = {
-            "base_width_1": castle_dimensions.base.width,
-            "base_depth_1": castle_dimensions.base.depth,
-            "base_height_1": castle_dimensions.base.height,
-            "inner_cavity_width_1": castle_dimensions.inner_cavity.width,
-            "inner_cavity_depth_1": castle_dimensions.inner_cavity.depth,
-            "inner_cavity_height_1": castle_dimensions.inner_cavity.height,
-            "cavity_width_1": castle_dimensions.cavity.width,
-            "cavity_depth_1": castle_dimensions.cavity.depth,
-            "cavity_height_1": castle_dimensions.cavity.height,
-            "top_width_1": castle_dimensions.top.width,
-            "top_depth_1": castle_dimensions.top.depth,
-            "top_height_1": castle_dimensions.top.height,
-            "front_width_1": castle_dimensions.front.width,
-            "front_depth_1": castle_dimensions.front.depth,
-            "front_height_1": castle_dimensions.front.height,
-        }
+        if table_num == 1:
+            replacements = {
+                "base_width_1": castle_dimensions.base.width,
+                "base_depth_1": castle_dimensions.base.depth,
+                "base_height_1": castle_dimensions.base.height,
+                "inner_cavity_width_1": castle_dimensions.inner_cavity.width,
+                "inner_cavity_depth_1": castle_dimensions.inner_cavity.depth,
+                "inner_cavity_height_1": castle_dimensions.inner_cavity.height,
+                "cavity_width_1": castle_dimensions.cavity.width,
+                "cavity_depth_1": castle_dimensions.cavity.depth,
+                "cavity_height_1": castle_dimensions.cavity.height,
+                "top_width_1": castle_dimensions.top.width,
+                "top_depth_1": castle_dimensions.top.depth,
+                "top_height_1": castle_dimensions.top.height,
+                "front_width_1": castle_dimensions.front.width,
+                "front_depth_1": castle_dimensions.front.depth,
+                "front_height_1": castle_dimensions.front.height,
+            }
 
-    elif table_num == 2:
-        replacements = {
-            "base_width_2": castle_dimensions.base.width,
-            "base_depth_2": castle_dimensions.base.depth,
-            "base_height_2": castle_dimensions.base.height,
-            "inner_cavity_width_2": castle_dimensions.inner_cavity.width,
-            "inner_cavity_depth_2": castle_dimensions.inner_cavity.depth,
-            "inner_cavity_height_2": castle_dimensions.inner_cavity.height,
-            "top_width_2": castle_dimensions.top.width,
-            "top_depth_2": castle_dimensions.top.depth,
-            "top_height_2": castle_dimensions.top.height,
-            "copper_plate_width": castle_dimensions.copper_plate.width,
-            "copper_plate_depth": castle_dimensions.copper_plate.depth,
-            "copper_plate_height": castle_dimensions.copper_plate.height,
-        }
+        elif table_num == 2:
+            replacements = {
+                "base_width_2": castle_dimensions.base.width,
+                "base_depth_2": castle_dimensions.base.depth,
+                "base_height_2": castle_dimensions.base.height,
+                "inner_cavity_width_2": castle_dimensions.inner_cavity.width,
+                "inner_cavity_depth_2": castle_dimensions.inner_cavity.depth,
+                "inner_cavity_height_2": castle_dimensions.inner_cavity.height,
+                "top_width_2": castle_dimensions.top.width,
+                "top_depth_2": castle_dimensions.top.depth,
+                "top_height_2": castle_dimensions.top.height,
+                "copper_plate_width": castle_dimensions.copper_plate.width,
+                "copper_plate_depth": castle_dimensions.copper_plate.depth,
+                "copper_plate_height": castle_dimensions.copper_plate.height,
+            }
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name=volume_name)
+        return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name=volume_name)
+    else:
+        # Create lead castle directly with pyg4ometry
+        reg = geant4.Registry()
+        
+        # Use predefined lead material
+        pb_mat = geant4.MaterialPredefined("G4_Pb", reg)
+        
+        if table_num == 1:
+            # Create all the boxes
+            base_solid = geant4.solid.Box(
+                "base_lead_castle_1",
+                castle_dimensions.base.width,
+                castle_dimensions.base.depth,
+                castle_dimensions.base.height,
+                reg,
+                "mm"
+            )
+            
+            inner_cavity_solid = geant4.solid.Box(
+                "inner_cavity_base_1",
+                castle_dimensions.inner_cavity.width,
+                castle_dimensions.inner_cavity.depth,
+                castle_dimensions.inner_cavity.height,
+                reg,
+                "mm"
+            )
+            
+            cavity_solid = geant4.solid.Box(
+                "cavity_base_1",
+                castle_dimensions.cavity.width,
+                castle_dimensions.cavity.depth,
+                castle_dimensions.cavity.height,
+                reg,
+                "mm"
+            )
+            
+            top_solid = geant4.solid.Box(
+                "top_lead_castle_1",
+                castle_dimensions.top.width,
+                castle_dimensions.top.depth,
+                castle_dimensions.top.height,
+                reg,
+                "mm"
+            )
+            
+            front_solid = geant4.solid.Box(
+                "front_1",
+                castle_dimensions.front.width,
+                castle_dimensions.front.depth,
+                castle_dimensions.front.height,
+                reg,
+                "mm"
+            )
+            
+            # Boolean operations to build the final geometry
+            # pos_cavity_base: y=(inner_cavity_y/2+(base_y-inner_cavity_y)/4), z=(inner_cavity_z-cavity_z)/2
+            pos_cavity_y = (castle_dimensions.inner_cavity.depth / 2.0 + 
+                           (castle_dimensions.base.depth - castle_dimensions.inner_cavity.depth) / 4.0)
+            pos_cavity_z = (castle_dimensions.inner_cavity.height - castle_dimensions.cavity.height) / 2.0
+            
+            # Union: inner_cavity + cavity
+            total_cavity = geant4.solid.Union(
+                "total_cavity_1",
+                inner_cavity_solid,
+                cavity_solid,
+                [[0, 0, 0], [0, pos_cavity_y, pos_cavity_z]],
+                reg
+            )
+            
+            # Subtraction: base - total_cavity
+            base_cavity = geant4.solid.Subtraction(
+                "base_cavity_1",
+                base_solid,
+                total_cavity,
+                [[0, 0, 0], [0, 0, 0]],
+                reg
+            )
+            
+            # pos_top: z=-(base_z+top_z)/2 - 0.01
+            pos_top_z = -(castle_dimensions.base.height + castle_dimensions.top.height) / 2.0 - 0.01
+            
+            # Union: base_cavity + top
+            top_base = geant4.solid.Union(
+                "top_base_1",
+                base_cavity,
+                top_solid,
+                [[0, 0, 0], [0, 0, pos_top_z]],
+                reg
+            )
+            
+            # pos_front: y=(base_y+front_y)/2 - 0.01, z=(base_z-front_z)/2
+            pos_front_y = (castle_dimensions.base.depth + castle_dimensions.front.depth) / 2.0 - 0.01
+            pos_front_z = (castle_dimensions.base.height - castle_dimensions.front.height) / 2.0
+            
+            # Union: top_base + front
+            final_solid = geant4.solid.Union(
+                "final_lead_castle_1",
+                top_base,
+                front_solid,
+                [[0, 0, 0], [0, pos_front_y, pos_front_z]],
+                reg
+            )
+            
+            return geant4.LogicalVolume(final_solid, pb_mat, "Lead_castle", reg)
+        
+        elif table_num == 2:
+            msg = "Table 2 Python implementation not yet complete - use from_gdml=True"
+            raise NotImplementedError(msg)
 
 
 def create_source(
