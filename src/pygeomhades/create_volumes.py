@@ -5,7 +5,6 @@ from importlib import resources
 import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
-from pygeomhpges import make_hpge
 
 from pygeomhades import dimensions as dim
 from pygeomhades.utils import read_gdml_with_replacements
@@ -55,20 +54,6 @@ def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry
         registry=registry,
     )
     return geant4.LogicalVolume(vacuum_cavity, cavity_material, "cavity_lv", registry)
-
-
-def create_hpge(reg: geant4.Registry, ged_meta_dict: AttrsDict) -> geant4.LogicalVolume:
-    """Construct the detector logical volume
-
-    Parameters
-    ----------
-    reg
-        The registry to add the detector to.
-    ged_meta_dict
-        The diodes metadata for the detector.
-
-    """
-    return make_hpge(ged_meta_dict, name=ged_meta_dict.name, registry=reg)
 
 
 def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.LogicalVolume:

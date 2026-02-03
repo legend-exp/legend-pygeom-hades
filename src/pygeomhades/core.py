@@ -11,13 +11,13 @@ from dbetto import TextDB
 from git import GitCommandError
 from legendmeta import LegendMetadata
 from pyg4ometry import geant4
+from pygeomhpges import make_hpge
 
 from pygeomhades import dimensions as dim
 from pygeomhades.create_volumes import (
     create_bottom_plate,
     create_cryostat,
     create_holder,
-    create_hpge,
     create_lead_castle,
     create_source,
     create_source_holder,
@@ -60,6 +60,7 @@ def construct(
     assemblies: list[str] | set[str] = DEFAULT_ASSEMBLIES,
     extra_meta: TextDB | Path | str | None = None,
     public_geometry: bool = False,
+    construct_unverified: bool = False,
 ) -> geant4.Registry:
     """Construct the HADES geometry and return the registry containing the world volume.
 
@@ -91,6 +92,9 @@ def construct(
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
+    construct_unverified
+        If true, allows construction of unverified assemblies such as the source assembly.
+        Default is False.
     """
 
     if extra_meta is None:
@@ -158,7 +162,7 @@ def construct(
         reg.addVolumeRecursive(pv)
 
         # construct the hpge
-        detector_lv = create_hpge(reg, hpge_meta)
+        detector_lv = make_hpge(hpge_meta, name=hpge_meta.name, registry=reg)
 
         z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
         pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos)
@@ -187,38 +191,39 @@ def construct(
         reg.addVolumeRecursive(pv)
 
     if "source" in assemblies:
+        if not construct_unverified:
+            msg = (
+                "Source assembly construction is implemented, but not verified. "
+                "To proceed anyway, set construct_unverified to True."
+            )
+            raise NotImplementedError(msg)
+
+        # basic information on the source
         source_type = config.source
+        measurement = config.measurement
+
+        # extract some metadata
         source_dims = dim.get_source_metadata(source_type)
-        holder_dims = {}
+        holder_dims = dim.get_source_holder_metadata(source_type, measurement)
 
         source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
         z_pos = hpge_meta.hades.source.z.position
 
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
+        # construct th plate if needed
         if config.source == "th":
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
+            reg.addVolumeRecursive(pv)
 
-        # and construct the source holder
-        holder_dims = {}
+        s_holder_lv = create_source_holder(source_type, holder_dims, measurement, from_gdml=True)
 
-        s_holder_lv = create_source_holder(config, from_gdml=True)
-        geant4.PhysicalVolume(
-            [0, 0, 0],
-            [
-                0,
-                0,
-                -(
-                    dim.positions_from_cryostat["source"]["z"]
-                    + dim.source_holder["top"]["top_plate_height"] / 2
-                ),  # TODO: this will break so we need to change it
-                "mm",
-            ],
-            s_holder_lv,
-            "s_holder_pv",
-            world_lv,
-            registry=reg,
-        )
+        # TODO: this will break so we need to change it
+        z_pos = -(hpge_meta.hades.source.z.position + holder_dims.source.top_plate_height / 2)
+
+        pv = _place_pv(s_holder_lv, "source_holder_pv", world_lv, reg, z_in_mm=z_pos)
+        reg.addVolumeRecursive(pv)
 
     return reg
