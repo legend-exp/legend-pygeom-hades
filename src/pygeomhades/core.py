@@ -34,17 +34,7 @@ from pygeomhades.utils import merge_configs, parse_measurement
 log = logging.getLogger(__name__)
 
 
-DEFAULT_ASSEMBLIES = {
-    "vacuum_cavity",
-    #"bottom_plate",
-    #"lead_castle",
-    "cryostat",
-    "holder",
-    "wrap",
-    "detector",
-    "source",
-    #"source_holder",
-}
+DEFAULT_ASSEMBLIES = {"hpge", "source"}
 
 
 def _place_pv(
@@ -273,7 +263,7 @@ def construct(
         pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-        table = 1 #config["lead_castle"]
+        table = 1 #check the single (?) measurement that wants lead castle 2
         castle_dims = dim.get_castle_dimensions(table)
         castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
 
