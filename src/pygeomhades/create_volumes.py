@@ -13,10 +13,6 @@ from pygeomhades.materials import (
 )
 from pygeomhades.utils import read_gdml_with_replacements
 
-# Small offset used in boolean operations to ensure proper overlap/separation
-# This prevents numerical issues in geometry construction
-boolean_operation_offset_mm = 0.01
-
 
 def create_vacuum_cavity(cryostat_metadata: AttrsDict, registry: geant4.Registry) -> geant4.LogicalVolume:
     """Construct the vacuum cavity.
@@ -347,7 +343,11 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
 
 
 def create_lead_castle(
-    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True, volume_name: str = "Lead_castle"
+    table_num: int,
+    castle_dimensions: AttrsDict,
+    from_gdml: bool = True,
+    volume_name: str = "Lead_castle",
+    boolean_operation_offset_mm: float = 0.01,
 ) -> geant4.LogicalVolume:
     """Create the lead castle.
 
@@ -370,9 +370,11 @@ def create_lead_castle(
                 width: 100
     volume_name
         Which volume to extract, defaults to "Lead_castle".
-
     from_gdml
         Whether to construct from a GDML file
+    boolean_operation_offset_mm
+        Small offset (in mm) used in boolean operations to ensure proper overlap/separation.
+        This prevents numerical issues in geometry construction. Defaults to 0.01 mm.
     """
 
     if table_num not in [1, 2]:
