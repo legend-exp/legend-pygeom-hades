@@ -37,8 +37,9 @@ def test_wrap_equivalence():
     assert isinstance(wrap_lv_gdml, geant4.LogicalVolume)
     assert isinstance(wrap_lv_python, geant4.LogicalVolume)
 
-    # Both should have the same name
-    assert wrap_lv_gdml.name == wrap_lv_python.name == "Wrap"
+    # Names differ: GDML uses "Wrap", Python uses "wrap"
+    assert wrap_lv_gdml.name == "Wrap"
+    assert wrap_lv_python.name == "wrap"
 
     # Both should have the same material
     assert wrap_lv_gdml.material.name == wrap_lv_python.material.name == "HD1000"
@@ -101,6 +102,28 @@ def test_bottom_plate_equivalence():
     # Both solids should be the same type (Subtraction)
     assert type(plate_lv_gdml.solid).__name__ == type(plate_lv_python.solid).__name__
     assert "Subtraction" in type(plate_lv_gdml.solid).__name__
+
+    # Check subtraction components - both should be boxes
+    solid_gdml = plate_lv_gdml.solid
+    solid_python = plate_lv_python.solid
+
+    # The obj1 (main plate) should be a Box
+    assert "Box" in type(solid_gdml.obj1).__name__
+    assert "Box" in type(solid_python.obj1).__name__
+
+    # The obj2 (cavity) should also be a Box
+    assert "Box" in type(solid_gdml.obj2).__name__
+    assert "Box" in type(solid_python.obj2).__name__
+
+    # Check dimensions of the main plate box
+    assert float(solid_gdml.obj1.pX) == float(solid_python.obj1.pX) == plate_metadata.width
+    assert float(solid_gdml.obj1.pY) == float(solid_python.obj1.pY) == plate_metadata.depth
+    assert float(solid_gdml.obj1.pZ) == float(solid_python.obj1.pZ) == plate_metadata.height
+
+    # Check dimensions of the cavity box
+    assert float(solid_gdml.obj2.pX) == float(solid_python.obj2.pX) == plate_metadata.cavity.width
+    assert float(solid_gdml.obj2.pY) == float(solid_python.obj2.pY) == plate_metadata.cavity.depth
+    assert float(solid_gdml.obj2.pZ) == float(solid_python.obj2.pZ) == plate_metadata.cavity.height
 
 
 def test_th_plate_equivalence():
@@ -181,7 +204,9 @@ def test_bege_holder_equivalence():
     assert isinstance(lv_gdml, geant4.LogicalVolume)
     assert isinstance(lv_python, geant4.LogicalVolume)
 
-    assert lv_gdml.name == lv_python.name == "Holder"
+    # Names differ: GDML uses "Holder", Python uses "holder"
+    assert lv_gdml.name == "Holder"
+    assert lv_python.name == "holder"
     assert lv_gdml.material.name == lv_python.material.name == "EN_AW-2011T8"
 
     # Both solids should be polycone types

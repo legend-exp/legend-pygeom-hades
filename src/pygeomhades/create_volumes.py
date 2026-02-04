@@ -101,7 +101,7 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
     reg = geant4.Registry()
 
     # Define HD1000 material (polyethylene-like)
-    hd1000 = create_hd1000_material(reg)
+    polyethylene_material = create_hd1000_material(reg)
 
     # Create polycone solid
     wrap_outer_height = wrap_metadata.outer.height_in_mm
@@ -120,7 +120,7 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
         registry=reg,
     )
 
-    return geant4.LogicalVolume(wrap_solid, hd1000, "wrap", reg)
+    return geant4.LogicalVolume(wrap_solid, polyethylene_material, "wrap", reg)
 
 
 def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True) -> geant4.LogicalVolume:
