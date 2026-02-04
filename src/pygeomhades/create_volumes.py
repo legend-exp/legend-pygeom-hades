@@ -120,7 +120,7 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
         registry=reg,
     )
 
-    return geant4.LogicalVolume(wrap_solid, hd1000, "Wrap", reg)
+    return geant4.LogicalVolume(wrap_solid, hd1000, "wrap", reg)
 
 
 def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True) -> geant4.LogicalVolume:
