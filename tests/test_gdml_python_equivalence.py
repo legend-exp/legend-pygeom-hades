@@ -48,6 +48,38 @@ def test_wrap_equivalence():
     assert "Polycone" in type(wrap_lv_gdml.solid).__name__
     assert "Polycone" in type(wrap_lv_python.solid).__name__
 
+    # Check polycone geometry parameters
+    gdml_solid = wrap_lv_gdml.solid
+    python_solid = wrap_lv_python.solid
+
+    # GDML Polycone uses z-planes with RMin/RMax, GenericPolycone uses explicit R-Z points
+    # Evaluate GDML expressions to get numeric values
+    gdml_z = [float(z.eval()) for z in gdml_solid.pZpl]
+    gdml_rmin = [float(r.eval()) for r in gdml_solid.pRMin]
+    gdml_rmax = [float(r.eval()) for r in gdml_solid.pRMax]
+
+    # Python GenericPolycone has explicit R and Z arrays
+    python_r = python_solid.pR
+    python_z = python_solid.pZ
+
+    # Verify both representations describe the same geometry
+    # Check that start and end z-coordinates match
+    assert abs(min(python_z) - min(gdml_z)) < 1e-6, f"Start Z mismatch: {min(python_z)} vs {min(gdml_z)}"
+    assert abs(max(python_z) - max(gdml_z)) < 1e-6, f"End Z mismatch: {max(python_z)} vs {max(gdml_z)}"
+
+    # Verify radii: check that max radius in Python matches GDML RMax
+    max_python_r = max(python_r)
+    max_gdml_r = max(gdml_rmax)
+    assert abs(max_python_r - max_gdml_r) < 1e-6, f"Max radius mismatch: {max_python_r} vs {max_gdml_r}"
+
+    # Check inner radii match (for hollow polycones)
+    non_zero_python_r = [r for r in python_r if r > 0]
+    non_zero_gdml_rmin = [r for r in gdml_rmin if r > 0]
+    if non_zero_python_r and non_zero_gdml_rmin:
+        assert abs(min(non_zero_python_r) - min(non_zero_gdml_rmin)) < 1e-6, (
+            f"Min inner radius mismatch: {min(non_zero_python_r)} vs {min(non_zero_gdml_rmin)}"
+        )
+
 
 def test_cryostat_equivalence():
     """Test that cryostat geometry is equivalent between GDML and Python."""
@@ -73,6 +105,38 @@ def test_cryostat_equivalence():
     # Both solids should be polycone types
     assert "Polycone" in type(cryo_lv_gdml.solid).__name__
     assert "Polycone" in type(cryo_lv_python.solid).__name__
+
+    # Check polycone geometry parameters
+    gdml_solid = cryo_lv_gdml.solid
+    python_solid = cryo_lv_python.solid
+
+    # GDML Polycone uses z-planes with RMin/RMax, GenericPolycone uses explicit R-Z points
+    # Evaluate GDML expressions to get numeric values
+    gdml_z = [float(z.eval()) for z in gdml_solid.pZpl]
+    gdml_rmin = [float(r.eval()) for r in gdml_solid.pRMin]
+    gdml_rmax = [float(r.eval()) for r in gdml_solid.pRMax]
+
+    # Python GenericPolycone has explicit R and Z arrays
+    python_r = python_solid.pR
+    python_z = python_solid.pZ
+
+    # Verify both representations describe the same geometry
+    # Check that start and end z-coordinates match
+    assert abs(min(python_z) - min(gdml_z)) < 1e-6, f"Start Z mismatch: {min(python_z)} vs {min(gdml_z)}"
+    assert abs(max(python_z) - max(gdml_z)) < 1e-6, f"End Z mismatch: {max(python_z)} vs {max(gdml_z)}"
+
+    # Verify radii: check that max radius in Python matches GDML RMax
+    max_python_r = max(python_r)
+    max_gdml_r = max(gdml_rmax)
+    assert abs(max_python_r - max_gdml_r) < 1e-6, f"Max radius mismatch: {max_python_r} vs {max_gdml_r}"
+
+    # Verify the cavity radius (min inner radius)
+    non_zero_gdml_rmin = [r for r in gdml_rmin if r > 0]
+    non_zero_python_r = [r for r in python_r if r > 0]
+    if non_zero_gdml_rmin and non_zero_python_r:
+        assert abs(min(non_zero_python_r) - min(non_zero_gdml_rmin)) < 1e-6, (
+            f"Min cavity radius mismatch: {min(non_zero_python_r)} vs {min(non_zero_gdml_rmin)}"
+        )
 
 
 def test_bottom_plate_equivalence():
@@ -212,6 +276,29 @@ def test_bege_holder_equivalence():
     # Both solids should be polycone types
     assert "Polycone" in type(lv_gdml.solid).__name__
     assert "Polycone" in type(lv_python.solid).__name__
+
+    # Check polycone geometry parameters
+    gdml_solid = lv_gdml.solid
+    python_solid = lv_python.solid
+
+    # GDML Polycone uses z-planes with RMin/RMax, GenericPolycone uses explicit R-Z points
+    # Evaluate GDML expressions to get numeric values
+    gdml_z = [float(z.eval()) for z in gdml_solid.pZpl]
+    gdml_rmax = [float(r.eval()) for r in gdml_solid.pRMax]
+
+    # Python GenericPolycone has explicit R and Z arrays
+    python_r = python_solid.pR
+    python_z = python_solid.pZ
+
+    # Verify both representations describe the same geometry
+    # Check that start and end z-coordinates match
+    assert abs(min(python_z) - min(gdml_z)) < 1e-6, f"Start Z mismatch: {min(python_z)} vs {min(gdml_z)}"
+    assert abs(max(python_z) - max(gdml_z)) < 1e-6, f"End Z mismatch: {max(python_z)} vs {max(gdml_z)}"
+
+    # Verify radii: check that max radius in Python matches GDML RMax
+    max_python_r = max(python_r)
+    max_gdml_r = max(gdml_rmax)
+    assert abs(max_python_r - max_gdml_r) < 1e-6, f"Max radius mismatch: {max_python_r} vs {max_gdml_r}"
 
 
 def test_lead_castle_table1_equivalence():
