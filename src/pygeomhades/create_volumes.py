@@ -275,7 +275,7 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
         msg = "cannot construct geometry for coax or ppc"
         raise NotImplementedError(msg)
 
-    return geant4.LogicalVolume(holder_solid, aluminum_alloy_material, "Holder", holder_registry)
+    return geant4.LogicalVolume(holder_solid, aluminum_alloy_material, "holder", holder_registry)
 
 
 def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> geant4.Registry:
