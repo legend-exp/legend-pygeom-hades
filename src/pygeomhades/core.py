@@ -7,6 +7,7 @@ from importlib import resources
 from pathlib import Path
 
 import dbetto
+import numpy as np
 import pygeomtools
 from dbetto import TextDB
 from git import GitCommandError
@@ -44,13 +45,17 @@ def _place_pv(
     x_in_mm: float = 0,
     y_in_mm: float = 0,
     z_in_mm: float = 0,
+    invert_z_axes: bool = False,
 ) -> geant4.PhysicalVolume:
     """Wrapper to place the physical volume more concisely."""
+
+    rot = [0, np.pi, 0, "rad"] if invert_z_axes else [0, 0, 0, "rad"]
+
     return geant4.PhysicalVolume(
-        [0, 0, 0],
+        rot,
         [x_in_mm, y_in_mm, z_in_mm, "mm"],
         lv,
-        name,
+        name.replace("_lv", ""),  # strip _lv from name
         mother_lv,
         registry=reg,
     )
@@ -135,10 +140,16 @@ def construct(
     reg = geant4.Registry()
 
     # Create the world volume
-    world_material = geant4.MaterialPredefined("G4_AIR")
-    world = geant4.solid.Box("world", 10, 10, 10, reg, "m")
-    world_lv = geant4.LogicalVolume(world, world_material, "world_lv", reg)
+    world = geant4.solid.Box("world", 20, 20, 20, reg, "m")
+    world_lv = geant4.LogicalVolume(world, "G4_Galactic", "world_lv", reg)
     reg.setWorld(world_lv)
+
+    # place a box rotated 180 deg so the geometry is not upside down
+    lab = geant4.solid.Box("lab", 18, 18, 18, reg, "m")
+    lab_lv = geant4.LogicalVolume(lab, "G4_AIR", "lab_lv", reg)
+    lab_lv.pygeom_color_rgba = False
+
+    _place_pv(lab_lv, "lab_lv", world_lv, reg, invert_z_axes=True)
 
     # extract the metadata on the cryostat
     cryostat_meta = dim.get_cryostat_metadata(
@@ -148,7 +159,7 @@ def construct(
     cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
     cavity_lv.pygeom_color_rgba = False
 
-    _place_pv(cavity_lv, "cavity_pv", world_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
+    _place_pv(cavity_lv, "cavity_pv", lab_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
 
     if "hpge" in assemblies:
         # construct the mylar wrap
@@ -173,8 +184,14 @@ def construct(
         )
         detector_lv.pygeom_color_rgba = [0.33, 0.33, 0.33, 1.0]
 
-        z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top
-        pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos)
+        # an extra offset is needed to account for the different reference point
+        # this is the top of the crystal in the original GDML but it's the p+ contact here
+
+        extra_offset = max(detector_lv.get_profile()[1])
+        z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top + extra_offset
+
+        # we need to flip the detector axes when placing it in the cryostat
+        pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos, invert_z_axes=True)
 
         # register the detector info for remage
         pv.set_pygeom_active_detector(
@@ -188,7 +205,7 @@ def construct(
         cryo_lv = create_cryostat(cryostat_meta, from_gdml=True)
         cryo_lv.pygeom_color_rgba = [0.0, 0.2, 0.8, 0.3]
 
-        pv = _place_pv(cryo_lv, "cryo_pv", world_lv, reg)
+        pv = _place_pv(cryo_lv, "cryo_pv", lab_lv, reg)
         reg.addVolumeRecursive(pv)
 
     if "lead_castle" in assemblies:
@@ -198,7 +215,7 @@ def construct(
         plate_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
-        pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
+        pv = _place_pv(plate_lv, "plate_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
         # construct the lead castle
@@ -208,12 +225,11 @@ def construct(
         castle_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0
-        pv = _place_pv(castle_lv, "castle_pv", world_lv, reg, z_in_mm=z_pos)
+        pv = _place_pv(castle_lv, "castle_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
         if table == 2:
-            msg = "For the lead castle the copper plate is not implemented!"
-            log.warning(msg)
+            reg.logicalVolumeDict["Copper_plate"].pygeom_color_rgba = [0.8, 0.6, 0.4, 0.2]
 
     if "source" in assemblies:
         if not construct_unverified:
@@ -234,13 +250,13 @@ def construct(
         source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
         z_pos = hpge_meta.hades.source.z.position
 
-        pv = _place_pv(source_lv, "source_pv", world_lv, reg, z_in_mm=z_pos)
+        pv = _place_pv(source_lv, "source_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
         # construct th plate if needed
         if source_type == "th":
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
-            pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
+            pv = _place_pv(th_plate_lv, "th_plate_pv", lab_lv, reg)
             reg.addVolumeRecursive(pv)
 
         s_holder_lv = create_source_holder(
@@ -254,7 +270,7 @@ def construct(
         # TODO: this will break so we need to change it
         z_pos = -(hpge_meta.hades.source.z.position + holder_dims.source.top_plate_height / 2)
 
-        pv = _place_pv(s_holder_lv, "source_holder_pv", world_lv, reg, z_in_mm=z_pos)
+        pv = _place_pv(s_holder_lv, "source_holder_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
     return reg
