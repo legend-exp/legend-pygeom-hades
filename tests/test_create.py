@@ -82,14 +82,18 @@ def test_create_holder():
     )
 
     # test with bege
-    lv = create_holder(holder, "bege", from_gdml=True)
+    lv = create_holder(holder, "bege", order=0, from_gdml=True)
     assert isinstance(lv, geant4.LogicalVolume)
 
-    lv = create_holder(holder, "icpc", from_gdml=True)
+    lv = create_holder(holder, "icpc", order=0, from_gdml=True)
     assert isinstance(lv, geant4.LogicalVolume)
 
     with pytest.raises(NotImplementedError):
-        _ = create_holder(holder, "bege", from_gdml=False)
+        _ = create_holder(holder, "bege", order=0, from_gdml=False)
+
+    holder.pop("rings")  # remove rings for batch 6
+    lv = create_holder(holder, "icpc", order=6, from_gdml=True)
+    assert isinstance(lv, geant4.LogicalVolume)
 
 
 def test_create_th_plate():
