@@ -51,7 +51,7 @@ def _place_pv(
         [0, 0, 0],
         [x_in_mm, y_in_mm, z_in_mm, "mm"],
         lv,
-        name,
+        name.replace("_lv",""),
         mother_lv,
         registry=reg,
     )
@@ -140,7 +140,7 @@ def construct(
     reg = geant4.Registry()
 
     # Create the world volume
-    world_material = geant4.MaterialPredefined("G4_AIR")
+    world_material = geant4.MaterialPredefined("G4_Galactic")
     world = geant4.solid.Box("world", 10, 10, 10, reg, "m")
     world_lv = geant4.LogicalVolume(world, world_material, "world_lv", reg)
     reg.setWorld(world_lv)
@@ -186,15 +186,20 @@ def construct(
         source_dims = dim.get_source_metadata(source_type)
         holder_dims = {}
 
-        source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
+        source_lv, vol_name = create_source(source_type, source_dims, holder_dims, from_gdml=True)
         run, source_position, _ = source_pos.set_source_position(config)
         x_pos, y_pos, z_pos = source_position    
-        #z_pos = hpge_meta.hades.source.z.position
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, x_in_mm=x_pos, y_in_mm=y_pos, z_in_mm=z_pos)
+        print (pv, vol_name)
+        reg.addVolumeRecursive(pv)
+        print(reg.logicalVolumeDict.keys())
+        reg.logicalVolumeDict[vol_name].pygeom_color_rgba = [0.8, 0.6, 0.4, 0.2]
+        
 
         if source_type == "th_HS2":
             th_plate_lv = create_th_plate(source_dims, from_gdml=True)
             pv = _place_pv(th_plate_lv, "th_plate_pv", world_lv, reg)
+            reg.addVolumeRecursive(pv)
 
     if source_type != "am_HS1":
         #add source holder
@@ -226,7 +231,7 @@ def construct(
         pv = _place_pv(plate_lv, "plate_pv", world_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-        table = 1 #check the single (?) measurement that wants lead castle 2
+        table = 2 #check the single (?) measurement that wants lead castle 2
         castle_dims = dim.get_castle_dimensions(table)
         castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
 

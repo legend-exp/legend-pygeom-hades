@@ -243,7 +243,7 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = False) -> g
 
 
 def create_lead_castle(
-    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = False
+    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True
 ) -> geant4.LogicalVolume:
     """Create the lead castle.
 
@@ -316,12 +316,12 @@ def create_lead_castle(
             "copper_plate_height": castle_dimensions.copper_plate.height,
         }
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name="Lead_castle")
+    return read_gdml_with_replacements(dummy_gdml_path, replacements)#, vol_name="Lead_castle")
 
 
 def create_source(
-    source_type: str, source_dims: AttrsDict, holder_dims: AttrsDict | None, from_gdml: bool = False
-) -> geant4.LogicalVolume:
+    source_type: str, source_dims: AttrsDict, holder_dims: AttrsDict | None, from_gdml: bool = True
+) -> tuple[geant4.LogicalVolume, str]:
     """Create the geometry of the source.
 
     Parameters
@@ -439,7 +439,7 @@ def create_source(
     else:
         msg = f"source type of {source_type} is not defined."
         raise RuntimeError(msg)
-    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name)
+    return read_gdml_with_replacements(dummy_gdml_path, replacements), vol_name #, vol_name)
 
 
 def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.LogicalVolume:
