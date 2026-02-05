@@ -190,9 +190,7 @@ def construct(
         run, source_position, _ = source_pos.set_source_position(config)
         x_pos, y_pos, z_pos = source_position    
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, x_in_mm=x_pos, y_in_mm=y_pos, z_in_mm=z_pos)
-        print (pv, vol_name)
         reg.addVolumeRecursive(pv)
-        print(reg.logicalVolumeDict.keys())
         reg.logicalVolumeDict[vol_name].pygeom_color_rgba = [0.8, 0.6, 0.4, 0.2]
         
 
