@@ -98,7 +98,9 @@ def create_wrap(wrap_metadata: AttrsDict, from_gdml: bool = False) -> geant4.Log
     return wrap_lv
 
 
-def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True) -> geant4.LogicalVolume:
+def create_holder(
+    holder_meta: AttrsDict, det_type: str, order: int, from_gdml: bool = True
+) -> geant4.LogicalVolume:
     """Construct the holder geometry
 
     Parameters
@@ -129,6 +131,8 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
                 height_in_mm: 10
             edge:
                 height_in_mm: 1000
+    order
+        The detector batch number.
 
     det_type
         Detector type.
@@ -142,28 +146,38 @@ def create_holder(holder_meta: AttrsDict, det_type: str, from_gdml: bool = True)
         raise NotImplementedError(msg)
 
     if det_type == "icpc":
-        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_icpc_dummy.gdml"
+        # different gdml for batch 6 due to no rings
+        name = "holder_icpc_batch_6_dummy.gdml" if order == 6 else "holder_icpc_dummy.gdml"
+        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / name
 
-        rings = holder_meta["rings"]
         cylinder = holder_meta["cylinder"]
         bottom_cylinder = holder_meta["bottom_cyl"]
 
         replacements = {
-            "max_radius_in_mm": rings.radius_in_mm,
             "outer_height_in_mm": cylinder.outer.height_in_mm,
             "inner_height_in_mm": cylinder.inner.height_in_mm,
             "outer_radius_in_mm": cylinder.outer.radius_in_mm,
             "inner_radius_in_mm": cylinder.inner.radius_in_mm,
             "outer_bottom_cyl_radius_in_mm": bottom_cylinder.outer.radius_in_mm,
             "inner_bottom_cyl_radius_in_mm": bottom_cylinder.inner.radius_in_mm,
-            "edge_height_in_mm": holder_meta.edge.height_in_mm,
-            "pos_top_ring_in_mm": rings.position_top_ring_in_mm,
-            "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
-            "end_top_ring_in_mm": rings.position_top_ring_in_mm + rings.height_in_mm,
-            "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm + rings.height_in_mm,
             "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm + bottom_cylinder.outer.height_in_mm,
             "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm + bottom_cylinder.inner.height_in_mm,
         }
+
+        # rings are only important for batches other than 6
+        if order != 6:
+            rings = holder_meta["rings"]
+
+            replacements |= {
+                "edge_height_in_mm": holder_meta.edge.height_in_mm,
+                "max_radius_in_mm": rings.radius_in_mm,
+                "pos_top_ring_in_mm": rings.position_top_ring_in_mm,
+                "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
+                "end_top_ring_in_mm": rings.position_top_ring_in_mm + rings.height_in_mm,
+                "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm + rings.height_in_mm,
+            }
+        else:
+            replacements["max_radius_in_mm"] = cylinder.outer.radius_in_mm
 
     elif det_type == "bege":
         dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "holder_bege_dummy.gdml"
