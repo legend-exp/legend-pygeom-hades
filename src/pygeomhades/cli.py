@@ -32,8 +32,8 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
         meshconfig.setGlobalMeshSliceAndStack(100)
 
     registry = core.construct(
-        args.hpge_name,
-        args.measurement,
+        # args.hpge_name,
+        # args.measurement,
         assemblies=args.assemblies,
         config=config,
         public_geometry=args.public_geom,
@@ -126,28 +126,28 @@ def _parse_cli_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, 
         action="store",
         help="""Select a config file to read geometry information from. """,
     )
-    geom_opts.add_argument(
-        "--hpge-name",
-        action="store",
-        required=True,
-        help="""Name of the detector eg "V07302A".""",
-    )
+    # geom_opts.add_argument(
+    #    "--hpge-name",
+    #    action="store",
+    #    required=True,
+    #    help="""Name of the detector eg "V07302A".""",
+    # )
     geom_opts.add_argument(
         "--assemblies",
         action="store",
-        default=["hpge", "lead_castle"],
+        default=["hpge", "source"],
         help=(
             """Select the assemblies to generate in the output.
-            (default: hpge and lead_castle)"""
+            (default: hpge and source)"""
         ),
     )
 
-    geom_opts.add_argument(
-        "--measurement",
-        action="store",
-        required=True,
-        help="""Name of the measurement eg "am_HS1_top_dlt".""",
-    )
+    # geom_opts.add_argument(
+    #    "--measurement",
+    #    action="store",
+    #    required=True,
+    #    help="""Name of the measurement eg "am_HS1_top_dlt".""",
+    # )
 
     parser.add_argument(
         "filename",

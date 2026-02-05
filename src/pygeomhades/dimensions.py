@@ -138,11 +138,11 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
     Parameters
     ----------
     source_type
-        The type of source (am_collimated, am, ba, co or th)
+        The type of source (am_HS1, am_HS6, ba_HS4, co_HS5 or th_HS2)
     meas_type
         The measurement (for th only) either lat or top.
     """
-    if source_type == "am_collimated":
+    if source_type == "am_HS1":
         source = {
             "height": 2.0,
             "width": 1.0,
@@ -160,7 +160,7 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
                 "window": 0.2,
             },
         }
-    elif source_type == "am":
+    elif source_type == "am_HS6":
         source = {
             "height": 0.1,
             "width": 1.0,
@@ -170,14 +170,14 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
                 "height": 2.02,
             },
         }
-    elif source_type == "co":
+    elif source_type == "co_HS5":
         source = {
             "height": 0.1,
             "width": 5.0,
             "foil": {"width": 20, "height": 0.5},
             "al_ring": {"height": 3.0, "width_max": 30, "width_min": 20},
         }
-    elif source_type == "ba":
+    elif source_type == "ba_HS4":
         source = {
             "height": 0.1,
             "width": 5.0,
@@ -188,7 +188,7 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
             "al_ring": {"height": 3.0, "width_max": 30, "width_min": 26},
         }
 
-    elif source_type == "th":
+    elif source_type == "th_HS2":
         source = {
             "height": 1.0,
             "width": 1.0,
@@ -227,12 +227,12 @@ def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> Attr
     Parameters
     ----------
     source_type
-        The type of source (am_collimated, am, ba, co or th)
+        The type of source (am_HS1, am_HS6, ba_HS4, co_HS5 or th_HS2)
     meas_type
         The measurement (for th only) either lat or top.
     """
 
-    if source_type in ["co", "ba", "am_collimated"]:
+    if source_type in ["co_HS5", "ba_HS4", "am_HS1"]:
         source_holder = {
             "source": {
                 "top_plate_height": 3.0,
@@ -246,7 +246,7 @@ def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> Attr
             "inner_width": 87.0,
         }
 
-    elif source_type == "am":
+    elif source_type == "am_HS6":
         source_holder = {
             "source": {
                 "top_height": 10.0,
@@ -262,7 +262,7 @@ def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> Attr
             "inner_width": 87.0,
         }
 
-    elif source_type == "th":
+    elif source_type == "th_HS2":
         source_holder = {
             "source": {
                 "height": 30.0,

@@ -228,7 +228,7 @@ def create_bottom_plate(plate_metadata: AttrsDict, from_gdml: bool = True) -> ge
 
 
 def create_lead_castle(
-    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True, volume_name: str = "Lead_castle"
+    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True
 ) -> geant4.LogicalVolume:
     """Create the lead castle.
 
@@ -303,12 +303,12 @@ def create_lead_castle(
             "copper_plate_height": castle_dimensions.copper_plate.height,
         }
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements, vol_name=volume_name)
+    return read_gdml_with_replacements(dummy_gdml_path, replacements)
 
 
 def create_source(
-    source_type: str, source_dims: AttrsDict, holder_dims: AttrsDict | None, from_gdml: bool = False
-) -> geant4.LogicalVolume:
+    source_type: str, source_dims: AttrsDict, holder_dims: AttrsDict | None, from_gdml: bool = True
+) -> tuple[geant4.LogicalVolume, str]:
     """Create the geometry of the source.
 
     Parameters
@@ -366,64 +366,67 @@ def create_source(
 
     if not from_gdml:
         msg = "cannot construct geometry without the gdml for now"
-        raise NotImplementedError(msg)
+        raise RuntimeError(msg)
 
     dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / f"source_{source_type}_dummy.gdml"
 
-    if source_type == "am_collimated":
-        replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_capsule_height": source_dims.capsule.height,
-            "source_capsule_width": source_dims.capsule.width,
-            "window_source": source_dims.collimator.window,
-            "collimator_height": source_dims.collimator.height,
-            "collimator_depth": source_dims.collimator.depth,
-            "collimator_width": source_dims.collimator.width,
-            "collimator_beam_height": source_dims.collimator.beam_height,
-            "collimator_beam_width": source_dims.collimator.beam_width,
-        }
+    source = source_dims
 
-    elif source_type == "am":
+    if source_type == "am_HS1":
         replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_capsule_height": source_dims.capsule.height,
-            "source_capsule_width": source_dims.capsule.width,
-            "source_capsule_depth": source_dims.capsule.depth,
+            "source_height": source["height"],
+            "source_width": source["width"],
+            "source_capsule_height": source["capsule"]["height"],
+            "source_capsule_width": source["capsule"]["width"],
+            "window_source": source["collimator"]["window"],
+            "collimator_height": source["collimator"]["height"],
+            "collimator_depth": source["collimator"]["depth"],
+            "collimator_width": source["collimator"]["width"],
+            "collimator_beam_height": source["collimator"]["beam_height"],
+            "collimator_beam_width": source["collimator"]["beam_width"],
         }
-
-    elif source_type in ["ba", "co"]:
+        vol_name = "Source_Collimated"
+    elif source_type == "am_HS6":
         replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_foil_height": source_dims.foil.height,
-            "source_Alring_height": source_dims.al_ring.height,
-            "source_Alring_width_min": source_dims.al_ring.width_min,
-            "source_Alring_width_max": source_dims.al_ring.width_max,
+            "source_height": source["height"],
+            "source_width": source["width"],
+            "source_capsule_height": source["capsule"]["height"],
+            "source_capsule_width": source["capsule"]["width"],
+            "source_capsule_depth": source["capsule"]["depth"],
         }
-
-    elif source_type == "th":
+        vol_name = "Source_Encapsulated"
+    elif source_type in ["ba_HS4", "co_HS5"]:
         replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_capsule_height": source_dims.capsule.height,
-            "source_capsule_width": source_dims.capsule.width,
-            "source_epoxy_height": source_dims.epoxy.height,
-            "source_epoxy_width": source_dims.epoxy.width,
-            "CuSource_holder_height": holder_dims.copper.height,
-            "CuSource_holder_width": holder_dims.copper.width,
-            "CuSource_holder_cavity_width": holder_dims.copper.cavity_width,
-            "CuSource_holder_bottom_height": holder_dims.copper.bottom_height,
-            "CuSource_holder_bottom_width": holder_dims.copper.bottom_width,
-            "source_offset_height": source_dims.offset_height,
+            "source_height": source["height"],
+            "source_width": source["width"],
+            "source_foil_height": source["foil"]["height"],
+            "source_Alring_height": source["al_ring"]["height"],
+            "source_Alring_width_min": source["al_ring"]["width_min"],
+            "source_Alring_width_max": source["al_ring"]["width_max"],
         }
+        vol_name = "Source_Encapsulated"
+    elif source_type == "th_HS2":
+        source_holder = holder_dims
 
+        replacements = {
+            "source_height": source["height"],
+            "source_width": source["width"],
+            "source_capsule_height": source["capsule"]["height"],
+            "source_capsule_width": source["capsule"]["width"],
+            "source_epoxy_height": source["epoxy"]["height"],
+            "source_epoxy_width": source["epoxy"]["width"],
+            "CuSource_holder_height": source_holder["copper"]["height"],
+            "CuSource_holder_width": source_holder["copper"]["width"],
+            "CuSource_holder_cavity_width": source_holder["copper"]["cavity_width"],
+            "CuSource_holder_bottom_height": source_holder["copper"]["bottom_height"],
+            "CuSource_holder_bottom_width": source_holder["copper"]["bottom_width"],
+            "source_offset_height": source["offset_height"],
+        }
+        vol_name = "CuSource_Holder"
     else:
         msg = f"source type of {source_type} is not defined."
         raise RuntimeError(msg)
-
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return read_gdml_with_replacements(dummy_gdml_path, replacements), vol_name
 
 
 def create_th_plate(source_dims: AttrsDict, from_gdml: bool = False) -> geant4.LogicalVolume:
