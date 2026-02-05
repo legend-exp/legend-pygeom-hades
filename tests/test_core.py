@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from importlib import resources
+from pathlib import Path
 
 import pygeomtools
 import pytest
@@ -46,3 +48,16 @@ def test_construct():
             public_geometry=True,
             construct_unverified=False,
         )
+
+
+def test_all_detectors():
+    dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
+
+    for det in dets:
+        reg = construct(
+            str(det.stem),
+            "am_HS1_top_dlt",
+            config={"lead_castle_idx": 2},
+            public_geometry=True,
+        )
+        assert isinstance(reg, geant4.Registry)
