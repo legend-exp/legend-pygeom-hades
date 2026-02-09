@@ -3,6 +3,9 @@ import math
 from dbetto import TextDB
 import os
 from typing import Any
+from typing import Tuple, Union
+
+SourceInfo = Union[int, Tuple[float, float, float]]
 
 
 def check_source_position(
@@ -26,7 +29,7 @@ def check_source_position(
             f"for the given measurement {hpge_name}/{campaign}/{measurement}.\n"
             f"Available phi positions are: {phi_pos}\n"
             "\n"
-            f"Full list of available runs, runXXXX: [phi, x, z]\n"
+            f"Full list of available runs, runXXXX: [phi, r, z]\n"
             f"{details}"
         )
     else:
@@ -70,7 +73,7 @@ def check_source_position(
                 f"for the given measurement {hpge_name}/{campaign}/{measurement}.\n"
                 f"For the provided phi position [{phi_position}], the available r positions are: {r_available}. \n"
                 "\n"
-                f"Full list of available runs, runXXXX: [phi, x, z]\n"
+                f"Full list of available runs, runXXXX: [phi, r, z]\n"
                 f"{details}"
             )
         if matched_z==False:
@@ -80,19 +83,17 @@ def check_source_position(
                 f"for the given measurement {hpge_name}/{campaign}/{measurement}.\n"
                 f"For the provided phi position [{phi_position}] and r position [{r_position}], the available r positions are: {r_available}\n"
                 "\n"
-                "Full list of available runs, runXXXX: [phi, x, z]:\n"
+                "Full list of available runs, runXXXX: [phi, r, z]:\n"
                 f"{details}"
             )
 
-def set_source_position(config: dict) -> tuple[str, list, list]:
+def set_source_position(
+    hpge_name: str,
+    measurement: str,
+    campaign: str,
+    source_info: SourceInfo,
+    )  -> tuple[str, list, list]:
 
-    hpge_name    = config["hpge_name"]
-    campaign    = config["campaign"]
-    measurement = config["measurement"]
-    run         = config["run"]
-    phi_position= config["phi_position"]
-    r_position  = config["r_position"]
-    z_position  = config["z_position"]
     
     MetaDataPath="/global/cfs/cdirs/m2676/data/teststands/hades/prodenv/ref/v1.0.0/inputs/hardware/config"
     MeasurementPath=f"{MetaDataPath}/{hpge_name}/{campaign}/{measurement}.yaml"
@@ -115,16 +116,15 @@ def set_source_position(config: dict) -> tuple[str, list, list]:
         for run in node.keys()
     )
 
-    if run[0].isdigit(): #the user knows the run number
-        run="run"+run
+    if isinstance(source_info, int): #the user knows the run number
+        run=f"run{source_info:04d}"
         try:
             node = getattr(node, run)
         except AttributeError:
             raise ValueError(
                 f"RUN EROOR.\n"
                 "Run '{run}' not found in the metadata. \n"
-                f"Run names must be 4-digit strings with leading zeros, e.g., '0001'.\n"
-                f"Full list of available runs, runXXXX: [phi, x, z]\n"
+                f"Full list of available runs, runXXXX: [phi, r, z]\n"
                 f"{details}"
                 )                             
         phi_position = node.source_position.phi_in_deg
@@ -132,9 +132,7 @@ def set_source_position(config: dict) -> tuple[str, list, list]:
         z_position = node.source_position.z_in_mm
         run=run[:1]+run[4:]  
     else: #the user knows the source position
-        user_positions = [phi_position, r_position, z_position]
-
-        run=check_source_position(node, user_positions, hpge_name, campaign, measurement)
+        run=check_source_position(node, source_info, hpge_name, campaign, measurement)
         run=run[:1]+run[4:]
 
     if source_type=="am_HS1" and r_position!=0: #update this condition

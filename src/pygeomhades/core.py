@@ -34,7 +34,7 @@ from pygeomhades.utils import merge_configs, parse_measurement
 log = logging.getLogger(__name__)
 
 
-DEFAULT_ASSEMBLIES = {"hpge", "source"}
+DEFAULT_ASSEMBLIES = {"hpge", "source", "lead_castle"}
 
 
 def _place_pv(
@@ -65,7 +65,8 @@ def _place_pv(
 def construct(
     hpge_name: str,
     measurement: str,
-    config: Mapping,
+    campaign,
+    source_info,
     assemblies: list[str] | set[str] = DEFAULT_ASSEMBLIES,
     extra_meta: TextDB | Path | str | None = None,
     public_geometry: bool = False,
@@ -78,16 +79,6 @@ def construct(
         Name of the detector, e.g., "V07302A".
     measurement
         Name of the measurement, e.g., "am_HS1_top_dlt".
-    config
-      configuration dictionary defining the geometry, e.g.,
-
-      .. code-block:: yaml
-
-        source_position:
-          phi_in_deg: 0.0
-          r_in_mm: 86.0
-          z_in_mm: 3.0
-        lead_castle_idx: 1
 
     assemblies
         A list of assemblies to construct, should be a subset of:
@@ -102,16 +93,12 @@ def construct(
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
     """
-    
+
     if extra_meta is None:
         extra_meta = TextDB(resources.files("pygeomhades") / "configs" / "holder_wrap")
     elif not isinstance(extra_meta, TextDB):
         extra_meta = TextDB(extra_meta)
 
-    if isinstance(config, str):
-        config = dbetto.utils.load_dict(config)
-
-    config = dbetto.AttrsDict(config)
 
     lmeta = None
     if not public_geometry:
@@ -130,7 +117,6 @@ def construct(
 
     position = measurement[7:10]
     source_type = measurement[:6]
-    #hpge_name = config.hpge_name
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
     hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
 
@@ -146,7 +132,7 @@ def construct(
 
     # place a box rotated 180 deg so the geometry is not upside down
     lab = geant4.solid.Box("lab", 18, 18, 18, reg, "m")
-    lab_lv = geant4.LogicalVolume(lab, "G4_AIR", "lab_lv", reg)
+    lab_lv = geant4.LogicalVolume(lab, "G4_Galactic", "lab_lv", reg)
     lab_lv.pygeom_color_rgba = False
 
     _place_pv(lab_lv, "lab_lv", world_lv, reg, invert_z_axes=True)
@@ -211,11 +197,10 @@ def construct(
         holder_dims = dim.get_source_holder_metadata(source_type, position)
 
         source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
-        run, source_position, _ = source_pos.set_source_position(config)
+        run, source_position, _ = source_pos.set_source_position(hpge_name, measurement, campaign, source_info)
         x_pos, y_pos, z_pos = source_position    
         pv = _place_pv(source_lv, "source_pv", world_lv, reg, x_in_mm=x_pos, y_in_mm=y_pos, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
-        print(source_lv.name)
         reg.logicalVolumeDict[source_lv.name].pygeom_color_rgba = [0.8, 0.6, 0.4, 0.2]
         
 
