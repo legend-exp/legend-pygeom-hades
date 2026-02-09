@@ -13,8 +13,10 @@ log = logging.getLogger(__name__)
 
 
 def dump_gdml_cli(argv: list[str] | None = None) -> None:
-    args, config = _parse_cli_args(argv)
+    args = _parse_cli_args(argv)
 
+    source_info = args.run or args.source_position
+    
     logging.basicConfig()
     if args.verbose:
         logging.getLogger("pygeomhades").setLevel(logging.DEBUG)
@@ -34,8 +36,9 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
     registry = core.construct(
         args.hpge_name,
         args.measurement,
+        args.campaign,
+        source_info,
         assemblies=args.assemblies,
-        config=config,
         public_geometry=args.public_geom,
     )
 
@@ -127,21 +130,26 @@ def _parse_cli_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, 
         help="""Select a config file to read geometry information from. """,
     )
     geom_opts.add_argument(
+        "--assemblies",
+        action="store",
+        default=["hpge", "source", "lead_castle"],
+        help=(
+            """Select the assemblies to generate in the output.
+            (default: hpge, source, and lead_castle)"""
+        ),
+    )
+    geom_opts.add_argument(
         "--hpge-name",
         action="store",
         required=True,
         help="""Name of the detector eg "V07302A".""",
     )
     geom_opts.add_argument(
-        "--assemblies",
+        "--campaign",
         action="store",
-        default=["hpge", "source", "lead_castle"],
-        help=(
-            """Select the assemblies to generate in the output.
-            (default: hpge and lead_castle)"""
-        ),
+        required=True,
+        help="""Name of the campaign eg "c1".""",
     )
-
     geom_opts.add_argument(
         "--measurement",
         action="store",
@@ -149,6 +157,22 @@ def _parse_cli_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, 
         help="""Name of the measurement eg "am_HS1_top_dlt".""",
     )
 
+    source_opts = geom_opts.add_mutually_exclusive_group(required=True)
+    source_opts.add_argument(
+        "--run",
+        action="store",
+        type=int,
+        help="""Number of the run eg 1.""",
+    )
+    source_opts.add_argument(
+        "--source_position",
+        nargs=3,
+        type=float,
+        action="store",
+        metavar=("phi", "r", "z"),
+        help="""Source position in phi, r, z  eg "0.0, 45.0, 3.0".""",
+    )
+    
     parser.add_argument(
         "filename",
         default=None,
@@ -158,12 +182,7 @@ def _parse_cli_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, 
 
     args = parser.parse_args(argv)
 
-    config = {}
-
-    if args.config is not None:
-        config = utils.load_dict(args.config)
-
     if not args.visualize and args.filename == "":
         parser.error("no output file and no visualization specified")
 
-    return args, config
+    return args
