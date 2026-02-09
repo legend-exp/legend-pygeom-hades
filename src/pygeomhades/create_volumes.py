@@ -411,11 +411,11 @@ def create_source(
             "source_capsule_width": source_dims.capsule.width,
             "source_epoxy_height": source_dims.epoxy.height,
             "source_epoxy_width": source_dims.epoxy.width,
-            "CuSource_holder_height": holder_dims.copper.height,
-            "CuSource_holder_width": holder_dims.copper.width,
-            "CuSource_holder_cavity_width": holder_dims.copper.cavity_width,
-            "CuSource_holder_bottom_height": holder_dims.copper.bottom_height,
-            "CuSource_holder_bottom_width": holder_dims.copper.bottom_width,
+            "CuSource_holder_height": source_dims.copper.height,
+            "CuSource_holder_width": source_dims.copper.width,
+            "CuSource_holder_cavity_width": source_dims.copper.cavity_width,
+            "CuSource_holder_bottom_height": source_dims.copper.bottom_height,
+            "CuSource_holder_bottom_width": source_dims.copper.bottom_width,
             "source_offset_height": source_dims.offset_height,
         }
 
@@ -493,31 +493,32 @@ def create_source_holder(
     source_holder = holder_dims
     dummy_path = resources.files("pygeomhades") / "models" / "dummy"
 
-    if source_type == "th_HS2" and meas_type == "lat":
-        dummy_gdml_path = dummy_path / "source_holder_th_HS2_lat_dummy.gdml"
 
-        replacements = {
-            "cavity_source_holder_height": source_holder.source.cavity_height,
-            "source_holder_height": source_holder.source.height,
-            "source_holder_outer_width": source_holder.outer_width,
-            "source_holder_inner_width": source_holder.inner_width,
-            "cavity_source_holder_width": source_holder.holder_width,
-        }
+    if source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2"]:
+        if meas_type == "lat":
+            dummy_gdml_path = dummy_path / "source_holder_lat_dummy.gdml"
 
-    elif source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2"]:
-        dummy_gdml_path = dummy_path / "source_holder_dummy.gdml"
-
-        replacements = {
-            "source_holder_top_plate_height": source_holder.source.top_plate_height,
-            "source_holder_top_height": source_holder.source.top_height,
-            "source_holder_topbottom_height": source_holder.source.top_bottom_height,
-            "source_holder_top_plate_width": source_holder.source.top_plate_width,
-            "source_holder_top_inner_width": source_holder.source.top_inner_width,
-            "source_holder_inner_width": source_holder.inner_width,
-            "source_holder_bottom_inner_width": source_holder.source.bottom_inner_width,
-            "source_holder_outer_width": source_holder.outer_width,
-            "position_source_fromcryostat_z": source_z,
-        }
+            replacements = {
+                "cavity_source_holder_height": source_holder.cavity_height,
+                "source_holder_height": source_holder.height,
+                "source_holder_outer_width": source_holder.outer_width,
+                "source_holder_inner_width": source_holder.inner_width,
+                "cavity_source_holder_width": source_holder.cavity_width,
+            }
+        else:
+            dummy_gdml_path = dummy_path / "source_holder_dummy.gdml"
+                
+            replacements = {
+                "source_holder_top_plate_height": source_holder.source.top_plate_height,
+                "source_holder_top_height": source_holder.source.top_height,
+                "source_holder_topbottom_height": source_holder.source.top_bottom_height,
+                "source_holder_top_plate_width": source_holder.source.top_plate_width,
+                "source_holder_top_inner_width": source_holder.source.top_inner_width,
+                "source_holder_inner_width": source_holder.inner_width,
+                "source_holder_bottom_inner_width": source_holder.source.bottom_inner_width,
+                "source_holder_outer_width": source_holder.outer_width,
+                "position_source_fromcryostat_z": source_z,
+            }
 
     elif source_type == "am_HS6":
         dummy_gdml_path = dummy_path / "source_holder_am_HS6_dummy.gdml"

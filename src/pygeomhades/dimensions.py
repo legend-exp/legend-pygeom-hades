@@ -198,6 +198,13 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
             },
             "epoxy": {"height": 2.2, "width": 1.6},
             "plates": {"height": 2.0, "width": 8.0, "cavity_width": 2.0},
+            "copper": {
+                "height": 30.0,
+                "width": 32.0,
+                "cavity_width": 3.0,
+                "bottom_height": 3.0,
+                "bottom_width": 50.0,
+            },
             "collimator": {
                 "height": 30.0,
                 "depth": 30.0,
@@ -206,7 +213,6 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
                 "beam_width": 1.0,
             },
         }
-
         if meas_type == "top":
             source["offset_height"] = 0.0
         elif meas_type == "lat":
@@ -232,19 +238,28 @@ def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> Attr
         The measurement (for th only) either lat or top.
     """
 
-    if source_type in ["co_HS5", "ba_HS4", "am_HS1"]:
-        source_holder = {
-            "source": {
-                "top_plate_height": 3.0,
-                "top_plate_width": 30.0,
-                "top_height": 10.0,
-                "top_inner_width": 20.0,
-                "top_bottom_height": 6.1,
-                "bottom_inner_width": 102.0,
-            },
-            "outer_width": 108.0,
-            "inner_width": 87.0,
-        }
+    if source_type in ["co_HS5", "ba_HS4", "am_HS1", "th_HS2"]:
+        if meas_type == "lat":
+             source_holder = {    
+                "outer_width": 181.6,
+                "inner_width": 101.6,
+                "height": 65.0, 
+                "cavity_height": 60.0, 
+                "cavity_width": 50.0,
+             }
+        else:
+            source_holder = {
+                "source": {
+                    "top_plate_height": 3.0,
+                    "top_plate_width": 30.0,
+                    "top_height": 10.0,
+                    "top_inner_width": 20.0,
+                    "top_bottom_height": 6.1,
+                    "bottom_inner_width": 102.0,
+                },
+                "outer_width": 108.0,
+                "inner_width": 87.0,
+            }
 
     elif source_type == "am_HS6":
         source_holder = {
@@ -262,20 +277,7 @@ def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> Attr
             "inner_width": 87.0,
         }
 
-    elif source_type == "th_HS2":
-        source_holder = {
-            "source": {
-                "height": 30.0,
-                "cavity_width": 3.0,
-                "bottom_height": 3.0,
-                "bottom_width": 50.0,
-            },
-        }
 
-        if meas_type == "lat":
-            source_holder["outer_width"] = 181.6
-            source_holder["inner_width"] = 101.6
-            source_holder["lat"] = {"height": 65.0, "cavity_height": 60.0, "cavity_width": 50.0}
     else:
         msg = f"Source must be co_HS5, ba_HS4, am_HS1, am_HS6 or th_HS2 not {source_type}"
         raise RuntimeError(msg)
