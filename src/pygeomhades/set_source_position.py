@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import math
-import os
 from typing import Any, Union
 
 from dbetto import TextDB
 
 from pygeomhades.utils import parse_measurement
+
 SourceInfo = Union[int, tuple[float, float, float]]
 
 
@@ -24,9 +24,9 @@ def check_source_position(
     measurement
         Name of the measurement, e.g., "am_HS1_top_dlt".
     campaign
-        Name of the campaign, e.g., "c1". 
+        Name of the campaign, e.g., "c1".
     """
-  
+
     phi_position, r_position, z_position = user_positions[0], user_positions[1], user_positions[2]
     phi_pos = list(node.group("source_position.phi_in_deg").keys())
     details = "\n".join(f"{run}: {list(getattr(node, run).source_position.values())}" for run in node.keys())
@@ -106,9 +106,9 @@ def set_source_position(
 
     position = measurement_info.position
     source_type = measurement_info.source
-    
+
     db = TextDB(MetaDataPath)
-    
+
     try:
         node = db[hpge_name][campaign][measurement]
     except FileNotFoundError:
