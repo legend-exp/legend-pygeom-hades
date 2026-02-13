@@ -4,9 +4,8 @@ import os
 
 import pygeomtools
 import pytest
-from pyg4ometry import geant4
-
 from dbetto import AttrsDict
+from pyg4ometry import geant4
 
 from pygeomhades.core import construct
 
