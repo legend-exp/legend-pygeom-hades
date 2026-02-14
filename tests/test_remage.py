@@ -53,6 +53,7 @@ def gdml_files(tmp_path):
                     "detector": str(det.stem),
                     "campaign": "c1",
                     "measurement": "am_HS1_top_dlt",
+                    "daq_settings": AttrsDict({"flashcam": {"card_interface": "efb2"}}),
                 }
             ),
             public_geometry=public_geom,
