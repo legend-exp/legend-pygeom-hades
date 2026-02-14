@@ -60,7 +60,6 @@ def gdml_files(tmp_path):
         pygeomtools.write_pygeom(reg, gdml_file)
         out.append(gdml_file)
 
-
     return out
 
 
