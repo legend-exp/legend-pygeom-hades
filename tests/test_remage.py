@@ -37,6 +37,30 @@ def gdml_files(tmp_path):
         pygeomtools.write_pygeom(reg, gdml_file)
         out.append(gdml_file)
 
+    dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
+
+    for det in dets:
+        if str(det.stem) in ["V02162B", "V02160A", "V07646A", "V06649A"] and public_geom:
+            continue
+
+        reg = construct(
+            AttrsDict(
+                {
+                    "detector": str(det.stem),
+                    "campaign": "c1",
+                    "measurement": "am_HS1_top_dlt",
+                }
+            ),
+            public_geometry=public_geom,
+        )
+        assert isinstance(reg, geant4.Registry)
+
+        gdml_file = tmp_path / f"hades-public-{det}.gdml"
+
+        pygeomtools.write_pygeom(reg, gdml_file)
+        out.append(gdml_file)
+
+
     return out
 
 
