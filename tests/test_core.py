@@ -29,7 +29,7 @@ def test_construct():
                 "daq_settings": daq_settings,
             }
         ),
-        public_geometry=True,
+        public_geometry=public_geom,
     )
     assert isinstance(reg, geant4.Registry)
     pygeomtools.geometry.check_registry_sanity(reg, reg)
@@ -46,7 +46,7 @@ def test_construct():
                 "daq_settings": daq_settings2,
             }
         ),
-        public_geometry=True,
+        public_geometry=public_geom,
     )
 
     # Copper plate should be present
@@ -66,7 +66,7 @@ def test_construct():
                     "source_position": pos,
                 }
             ),
-            public_geometry=True,
+            public_geometry=public_geom,
         )
 
         assert isinstance(reg, geant4.Registry)
@@ -86,7 +86,7 @@ def test_construct():
                     "source_position": pos,
                 }
             ),
-            public_geometry=True,
+            public_geometry=public_geom,
         )
 
 
@@ -94,19 +94,23 @@ def test_all_detectors():
     dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
 
     for det in dets:
-        
-        print(det.stem)
+        # skip the special detectors
+        if str(det.stem) in ["V02162B", "V02160A", "V07646A"] and public_geom:
+            continue
+
         daq_settings2 = AttrsDict({"flashcam": {"card_interface": "efb2"}})
         pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0})
         reg = construct(
-                AttrsDict({
+            AttrsDict(
+                {
                     "detector": str(det.stem),
                     "campaign": "c1",
                     "measurement": "am_HS6_top_dlt",
                     "daq_settings": daq_settings2,
                     "source_position": pos,
-                }),
-            public_geometry=True,
+                }
+            ),
+            public_geometry=public_geom,
         )
         assert isinstance(reg, geant4.Registry)
         pygeomtools.geometry.check_registry_sanity(reg, reg)
@@ -123,15 +127,3 @@ def test_translate_to_detector_frame():
     assert x == 0.0
     assert y == 0.0
     assert z == 38.0
-
-def test_all_detectors():
-    dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
-
-    for det in dets:
-        reg = construct(
-            str(det.stem),
-            "am_HS1_top_dlt",
-            config={"lead_castle_idx": 2},
-            public_geometry=True,
-        )
-        assert isinstance(reg, geant4.Registry)
