@@ -43,8 +43,10 @@ def gdml_files(tmp_path):
 
     dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
 
+    # test for all detectors
+    # only works for public geometry
     for det in dets:
-        if str(det.stem) in ["V02162B", "V02160A", "V07646A", "V06649A"] and public_geom:
+        if public_geom:
             continue
 
         reg = construct(
@@ -60,7 +62,7 @@ def gdml_files(tmp_path):
         )
         assert isinstance(reg, geant4.Registry)
 
-        gdml_file = tmp_path / f"hades-public-{det}.gdml"
+        gdml_file = tmp_path / f"hades-public-{det.stem}.gdml"
 
         pygeomtools.write_pygeom(reg, gdml_file)
         out.append(gdml_file)
@@ -75,6 +77,7 @@ def test_overlaps(gdml_files):
         "/RMG/Geometry/RegisterDetectorsFromGDML Germanium",
         "/run/initialize",
     ]
+    res = []
     for gdml_file in gdml_files:
         remage_run(
             macro,
