@@ -165,7 +165,9 @@ def construct(
     reg.addVolumeRecursive(pv)
 
     # construct the holder
-    holder_lv = create_holder(hpge_meta.hades.holder.geometry, hpge_meta.type, from_gdml=True)
+    holder_lv = create_holder(
+        hpge_meta.hades.holder.geometry, hpge_meta.type, hpge_meta.production.order, from_gdml=True
+    )
     holder_lv.pygeom_color_rgba = [0.0, 0.8, 0.2, 0.3]
 
     z_pos = hpge_meta.hades.holder.position - cryostat_meta.position_cavity_from_top
