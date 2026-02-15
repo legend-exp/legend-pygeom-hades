@@ -71,7 +71,7 @@ jobs:
           repository: legend-exp/hades-metadata
           fetch-depth: 0
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
+          path: ${{ env.HADES_METADATA }}
           submodules: "recursive"
 
       - name: Run unit tests
@@ -135,7 +135,7 @@ jobs:
           repository: legend-exp/hades-metadata
           fetch-depth: 0
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
+          path: ${{ env.HADES_METADATA }}
           submodules: "recursive"
 
       - name: Generate Report
@@ -190,7 +190,7 @@ jobs:
           repository: legend-exp/hades-metadata
           fetch-depth: 0
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
+          path: ${{ env.HADES_METADATA }}
           submodules: "recursive"
 
       - name: Setup build environment
