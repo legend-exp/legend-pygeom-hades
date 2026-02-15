@@ -108,7 +108,7 @@ def test_all_detectors(metadatas):
     _, hmeta = metadatas
 
     # detectors for which there is a cryostat
-    for det in hmeta.hardware.cryostat:
+    for det in hmeta.hardware.cryostat.keys():  # noqa: SIM118
         # skip the special detectors
         if det in ["V02162B", "V02160A", "V07646A", "V06649A"] and public_geom:
             continue

@@ -51,7 +51,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         pygeomtools.write_pygeom(reg, gdml_file)
         files.append(gdml_file)
 
-    for det in hmeta.hardware.cryostat:
+    for det in hmeta.hardware.cryostat.keys():  # noqa: SIM118
         reg = construct(
             AttrsDict(
                 {

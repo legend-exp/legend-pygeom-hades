@@ -26,6 +26,9 @@ class _DiodeProxy:
         m.production.slice = "A"
         return m
 
+    def keys(self):
+        return self.dummy_detector.keys()
+
 
 class PublicHadesMetadataProxy:
     def __init__(self):
@@ -35,10 +38,13 @@ class PublicHadesMetadataProxy:
 
 class _CryostatProxy:
     def __init__(self, dummy_cryostats: TextDB):
-        self.dummy_detectors = dummy_cryostats
+        self.dummy_cryostats = dummy_cryostats
 
     def __getitem__(self, det_name: str) -> AttrsDict:
-        det = self.dummy_detectors[det_name[0] + "99000A"]
+        det = self.dummy_cryostats[det_name[0] + "99000A"]
         m = copy.copy(det)
         m.name = det_name
         return m
+
+    def keys(self):
+        return self.dummy_cryostats.keys()
