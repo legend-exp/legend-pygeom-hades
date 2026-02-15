@@ -1,0 +1,33 @@
+name: Setup LEGEND and HADES metadata
+description: Checkout legend-metadata and hades-metadata and export env vars
+inputs:
+  token:
+    description: Token to clone metadata repos
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set LEGEND/HADES_METADATA variables
+      shell: bash
+      run: |
+        echo "LEGEND_METADATA=$GITHUB_WORKSPACE/legend-metadata" >> $GITHUB_ENV
+        echo "HADES_METADATA=$GITHUB_WORKSPACE/hades-metadata" >> $GITHUB_ENV
+
+    - name: Clone legend-metadata
+      uses: actions/checkout@v6
+      with:
+        repository: legend-exp/legend-metadata
+        fetch-depth: 0
+        token: ${{ inputs.token }}
+        path: legend-metadata
+        submodules: recursive
+
+    - name: Clone hades-metadata
+      uses: actions/checkout@v6
+      with:
+        repository: legend-exp/hades-metadata
+        fetch-depth: 0
+        token: ${{ inputs.token }}
+        path: hades-metadata
+        submodules: recursive
