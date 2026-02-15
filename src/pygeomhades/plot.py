@@ -25,6 +25,7 @@ def plot_profiles(profiles: dict, title: str = "", show: bool = False) -> tuple[
 
     ax.set_ylabel("height (mm)")
     ax.set_xlabel("radius (mm)")
+    ax.set_aspect("equal")
     ax.set_title(title)
     ax.legend(fontsize=12)
 
