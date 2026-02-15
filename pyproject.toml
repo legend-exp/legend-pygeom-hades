@@ -159,3 +159,6 @@ remage = ">=0.18,<0.19"
 [tool.pixi.environments]
 default = { solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
+
+[tool.pixi.feature.test.tasks]
+test = "pytest -vvv --runxfail"

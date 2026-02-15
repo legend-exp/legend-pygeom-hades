@@ -6,7 +6,6 @@ run0001:
   detector: V07302A
   measurement: am_HS1_lat_dlt
   run: run0001
-  run_live_time_in_s: 18000
   source_position:
     phi_in_deg: 0.0
     r_in_mm: 9.0

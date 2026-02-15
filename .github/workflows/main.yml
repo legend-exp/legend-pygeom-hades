@@ -55,7 +55,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          python -m pytest
+          python -m pytest -vvv
 
   test-remage:
     name: Test legend-pygeom-hades with remage
@@ -79,7 +79,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pixi run -e test pytest --runxfail -m needs_remage
+          pixi run -e test pytest -vvv --runxfail -m needs_remage
 
   test-coverage:
     name: Calculate and upload test coverage
