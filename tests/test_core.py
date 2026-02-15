@@ -5,9 +5,11 @@ import os
 import pygeomtools
 import pytest
 from dbetto import AttrsDict
+from legendmeta import HadesMetadata
 from pyg4ometry import geant4
 
 from pygeomhades.core import construct, translate_to_detector_frame
+from pygeomhades.metadata import PublicHadesMetadataProxy
 
 public_geom = os.getenv("LEGEND_METADATA", "") == ""
 
@@ -104,30 +106,32 @@ def test_construct(config: AttrsDict, assert_copper_plate: bool):
         assert "Copper_plate_PV" in reg.physicalVolumeDict
 
 
-def test_all_detectors(metadatas):
-    _, hmeta = metadatas
+@pytest.mark.parametrize(
+    "det",
+    (
+        PublicHadesMetadataProxy() if public_geom else HadesMetadata()
+    ).hardware.cryostat.keys(),
+)
+def test_construct_am_hs6_top_dlt(det: str):
+    # skip the special detectors
+    if det in ["V02162B", "V02160A", "V07646A", "V06649A"] and public_geom:
+        pytest.skip("public geometry: special detector not available")
 
-    # detectors for which there is a cryostat
-    for det in hmeta.hardware.cryostat.keys():  # noqa: SIM118
-        # skip the special detectors
-        if det in ["V02162B", "V02160A", "V07646A", "V06649A"] and public_geom:
-            continue
-
-        pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0})
-        reg = construct(
-            AttrsDict(
-                {
-                    "detector": det,
-                    "campaign": "c1",
-                    "measurement": "am_HS6_top_dlt",
-                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
-                    "source_position": pos,
-                }
-            ),
-            public_geometry=public_geom,
-        )
-        assert isinstance(reg, geant4.Registry)
-        pygeomtools.geometry.check_registry_sanity(reg, reg)
+    pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0})
+    reg = construct(
+        AttrsDict(
+            {
+                "detector": det,
+                "campaign": "c1",
+                "measurement": "am_HS6_top_dlt",
+                "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                "source_position": pos,
+            }
+        ),
+        public_geometry=public_geom,
+    )
+    assert isinstance(reg, geant4.Registry)
+    pygeomtools.geometry.check_registry_sanity(reg, reg)
 
 
 def test_translate_to_detector_frame():
