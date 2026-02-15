@@ -44,6 +44,10 @@ jobs:
           python -m pip install --upgrade pip wheel setuptools
           python -m pip install --upgrade .[test]
 
+      - name: Run unit tests with public geometry
+        run: |
+          python -m pytest -vvv
+
       - name: Setup LEGEND/HADES metadata
         # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
         if:
@@ -53,7 +57,7 @@ jobs:
         with:
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
 
-      - name: Run unit tests
+      - name: Run unit tests with full private metadata
         run: |
           python -m pytest -vvv
 
@@ -68,6 +72,10 @@ jobs:
         with:
           environments: test
 
+      - name: Run tests with public geometry
+        run: |
+          pixi run -e test pytest -vvv --runxfail -m needs_remage
+
       - name: Setup LEGEND/HADES metadata
         # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
         if:
@@ -77,7 +85,7 @@ jobs:
         with:
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
 
-      - name: Run tests
+      - name: Run tests with full private metadata
         run: |
           pixi run -e test pytest -vvv --runxfail -m needs_remage
 
