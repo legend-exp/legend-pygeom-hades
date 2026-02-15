@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 import pygeomtools
+import pytest
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
@@ -15,80 +16,92 @@ def test_import():
     import pygeomhades  # noqa: F401
 
 
-def test_construct():
-    # test for a bege
-    reg = construct(
-        AttrsDict(
-            {
-                "detector": "B00000B",
-                "campaign": "c1",
-                "measurement": "am_HS6_top_dlt",
-                "daq_settings": {"flashcam": {"card_interface": "efb1"}},
-            }
+@pytest.mark.parametrize(
+    ("config", "assert_copper_plate"),
+    [
+        (
+            AttrsDict(
+                {
+                    "detector": "B00000B",
+                    "campaign": "c1",
+                    "measurement": "am_HS6_top_dlt",
+                    "daq_settings": {"flashcam": {"card_interface": "efb1"}},
+                }
+            ),
+            False,
         ),
-        public_geometry=public_geom,
-    )
+        (
+            AttrsDict(
+                {
+                    "detector": "V02160B",
+                    "campaign": "c1",
+                    "measurement": "am_HS6_top_dlt",
+                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                }
+            ),
+            True,
+        ),
+        *[
+            (
+                AttrsDict(
+                    {
+                        "detector": "V07302A",
+                        "campaign": "c1",
+                        "measurement": meas,
+                        "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                        "source_position": AttrsDict(
+                            {"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0}
+                        ),
+                    }
+                ),
+                False,
+            )
+            for meas in [
+                "am_HS1_top_dlt",
+                "th_HS2_top_dlt",
+                "ba_HS4_top_dlt",
+                "co_HS5_top_dlt",
+                "am_HS6_top_dlt",
+            ]
+        ],
+        *[
+            (
+                AttrsDict(
+                    {
+                        "detector": "V07302A",
+                        "campaign": "c1",
+                        "measurement": meas,
+                        "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                        "source_position": AttrsDict(
+                            {"phi_in_deg": 0.0, "r_in_mm": 30, "z_in_mm": 60.0}
+                        ),
+                    }
+                ),
+                False,
+            )
+            for meas in ["am_HS1_lat_dlt", "th_HS2_lat_psa"]
+        ],
+    ],
+    ids=[
+        "bege_efb1_am_HS6_top_dlt",
+        "table2_efb2_am_HS6_top_dlt",
+        "source_am_HS1_top_dlt",
+        "source_th_HS2_top_dlt",
+        "source_ba_HS4_top_dlt",
+        "source_co_HS5_top_dlt",
+        "source_am_HS6_top_dlt",
+        "lateral_am_HS1_lat_dlt",
+        "lateral_th_HS2_lat_psa",
+    ],
+)
+def test_construct(config: AttrsDict, assert_copper_plate: bool):
+    reg = construct(config, public_geometry=public_geom)
+
     assert isinstance(reg, geant4.Registry)
     pygeomtools.geometry.check_registry_sanity(reg, reg)
 
-    # test for table 2
-    reg = construct(
-        AttrsDict(
-            {
-                "detector": "V02160B",
-                "campaign": "c1",
-                "measurement": "am_HS6_top_dlt",
-                "daq_settings": {"flashcam": {"card_interface": "efb2"}},
-            }
-        ),
-        public_geometry=public_geom,
-    )
-
-    # Copper plate should be present
-    assert "Copper_plate_PV" in reg.physicalVolumeDict
-
-    # test with source
-    for meas in [
-        "am_HS1_top_dlt",
-        "th_HS2_top_dlt",
-        "ba_HS4_top_dlt",
-        "co_HS5_top_dlt",
-        "am_HS6_top_dlt",
-    ]:
-        pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0})
-
-        reg = construct(
-            AttrsDict(
-                {
-                    "detector": "V07302A",
-                    "campaign": "c1",
-                    "measurement": meas,
-                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
-                    "source_position": pos,
-                }
-            ),
-            public_geometry=public_geom,
-        )
-
-        assert isinstance(reg, geant4.Registry)
-        pygeomtools.geometry.check_registry_sanity(reg, reg)
-
-    # now lateral
-    for meas in ["am_HS1_lat_dlt", "th_HS2_lat_psa"]:
-        pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 30, "z_in_mm": 60.0})
-
-        reg = construct(
-            AttrsDict(
-                {
-                    "detector": "V07302A",
-                    "campaign": "c1",
-                    "measurement": meas,
-                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
-                    "source_position": pos,
-                }
-            ),
-            public_geometry=public_geom,
-        )
+    if assert_copper_plate:
+        assert "Copper_plate_PV" in reg.physicalVolumeDict
 
 
 def test_all_detectors(metadatas):
