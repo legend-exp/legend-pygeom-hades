@@ -12,14 +12,18 @@ from pygeomhades.metadata import PublicLegendMetadataProxy
 def test_merge_config():
     meta = PublicLegendMetadataProxy()
 
-    hpge_meta = utils.merge_configs(meta.hardware.detectors.germanium.diodes["V07302A"], {"dimensions": 1})
+    hpge_meta = utils.merge_configs(
+        meta.hardware.detectors.germanium.diodes["V07302A"], {"dimensions": 1}
+    )
 
     assert hpge_meta.hades.dimensions == 1
     assert hpge_meta.production.enrichment.val is not None
 
 
 def test_read_gdml_with_replacements():
-    dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / "wrap_dummy.gdml"
+    dummy_gdml_path = (
+        resources.files("pygeomhades") / "models" / "dummy" / "wrap_dummy.gdml"
+    )
     replacements = {
         "wrap_outer_height_in_mm": 100,
         "wrap_outer_radius_in_mm": 99,
@@ -54,7 +58,14 @@ def test_profile():
     reg = pyg4ometry.geant4.Registry()
 
     polycone = pyg4ometry.geant4.solid.Polycone(
-        "test_polycone", 0, 2 * np.pi, [0, 10], [2, 10], [3, 10], lunit="mm", registry=reg
+        "test_polycone",
+        0,
+        2 * np.pi,
+        [0, 10],
+        [2, 10],
+        [3, 10],
+        lunit="mm",
+        registry=reg,
     )
 
     profile = utils.get_profile(polycone)

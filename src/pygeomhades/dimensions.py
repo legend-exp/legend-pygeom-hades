@@ -278,7 +278,9 @@ def get_source_holder_metadata(source_type: str, meas_type: str = "lat") -> Attr
         }
 
     else:
-        msg = f"Source must be co_HS5, ba_HS4, am_HS1, am_HS6 or th_HS2 not {source_type}"
+        msg = (
+            f"Source must be co_HS5, ba_HS4, am_HS1, am_HS6 or th_HS2 not {source_type}"
+        )
         raise RuntimeError(msg)
 
     return AttrsDict(source_holder)

@@ -9,7 +9,9 @@ from dbetto import AttrsDict, TextDB
 class PublicLegendMetadataProxy:
     def __init__(self):
         dummy = TextDB(resources.files("pygeomhades") / "configs/dummy/diodes")
-        self.hardware = AttrsDict({"detectors": {"germanium": {"diodes": _DiodeProxy(dummy)}}})
+        self.hardware = AttrsDict(
+            {"detectors": {"germanium": {"diodes": _DiodeProxy(dummy)}}}
+        )
 
 
 class _DiodeProxy:

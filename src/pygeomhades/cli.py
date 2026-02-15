@@ -26,7 +26,9 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
         vis_scene = utils.load_dict(args.visualize)
 
     if args.clip_geometry:
-        vis_scene["clipper"] = [{"origin": [0, 0, 0], "normal": [1, 0, 0], "close_cuts": False}]
+        vis_scene["clipper"] = [
+            {"origin": [0, 0, 0], "normal": [1, 0, 0], "close_cuts": False}
+        ]
 
     if vis_scene.get("fine_mesh", False) or args.check_overlaps:
         meshconfig.setGlobalMeshSliceAndStack(100)

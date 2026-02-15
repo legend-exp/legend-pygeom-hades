@@ -105,7 +105,6 @@ ignore-words-list = "manuel,tre"
 
 [tool.ruff]
 src = ["src"]
-line-length = 110
 
 [tool.ruff.lint]
 extend-select = [

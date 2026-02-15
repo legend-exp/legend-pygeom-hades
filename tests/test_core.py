@@ -50,7 +50,13 @@ def test_construct():
     assert "Copper_plate_PV" in reg.physicalVolumeDict
 
     # test with source
-    for meas in ["am_HS1_top_dlt", "th_HS2_top_dlt", "ba_HS4_top_dlt", "co_HS5_top_dlt", "am_HS6_top_dlt"]:
+    for meas in [
+        "am_HS1_top_dlt",
+        "th_HS2_top_dlt",
+        "ba_HS4_top_dlt",
+        "co_HS5_top_dlt",
+        "am_HS6_top_dlt",
+    ]:
         pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0})
 
         reg = construct(
@@ -88,11 +94,16 @@ def test_construct():
 
 
 def test_all_detectors():
-    dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob("*.yaml")
+    dets = Path(resources.files("pygeomhades") / "configs" / "holder_wrap").glob(
+        "*.yaml"
+    )
 
     for det in dets:
         # skip the special detectors
-        if str(det.stem) in ["V02162B", "V02160A", "V07646A", "V06649A"] and public_geom:
+        if (
+            str(det.stem) in ["V02162B", "V02160A", "V07646A", "V06649A"]
+            and public_geom
+        ):
             continue
 
         daq_settings2 = AttrsDict({"flashcam": {"card_interface": "efb2"}})
