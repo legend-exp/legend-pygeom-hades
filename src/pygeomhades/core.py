@@ -13,21 +13,11 @@ from matplotlib import pyplot as plt
 from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
-from pygeomhades import dimensions as dim
-from pygeomhades import plot
-from pygeomhades.create_volumes import (
-    create_bottom_plate,
-    create_cryostat,
-    create_holder,
-    create_lead_castle,
-    create_source,
-    create_source_holder,
-    create_th_plate,
-    create_vacuum_cavity,
-    create_wrap,
-)
-from pygeomhades.metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
-from pygeomhades.utils import get_profile, merge_configs, parse_measurement
+from . import create_volumes as create
+from . import dimensions as dim
+from . import plot
+from .metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
+from .utils import get_profile, merge_configs, parse_measurement
 
 log = logging.getLogger(__name__)
 
@@ -145,7 +135,7 @@ def construct(
         hpge_meta.type, hpge_meta.production.order, hpge_meta.production.slice
     )
 
-    cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
+    cavity_lv = create.create_vacuum_cavity(cryostat_meta, reg)
     cavity_lv.pygeom_color_rgba = False
 
     # save the info for plotting
@@ -162,7 +152,7 @@ def construct(
     )
 
     # construct the mylar wrap
-    wrap_lv = create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
+    wrap_lv = create.create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
     wrap_lv.pygeom_color_rgba = [1.0, 1.0, 1.0, 0.8]
 
     z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
@@ -174,7 +164,7 @@ def construct(
     reg.addVolumeRecursive(pv)
 
     # construct the holder
-    holder_lv = create_holder(
+    holder_lv = create.create_holder(
         hpge_meta.hades.holder.geometry,
         hpge_meta.type,
         hpge_meta.production.order,
@@ -224,7 +214,7 @@ def construct(
         )
     )
     # construct the cryostat
-    cryo_lv = create_cryostat(cryostat_meta, from_gdml=True)
+    cryo_lv = create.create_cryostat(cryostat_meta, from_gdml=True)
     cryo_lv.pygeom_color_rgba = [0.0, 0.2, 0.8, 0.5]
 
     pv = _place_pv(cryo_lv, "cryo_pv", lab_lv, reg)
@@ -247,7 +237,9 @@ def construct(
         source_dims = dim.get_source_metadata(source_type, position)
         holder_dims = dim.get_source_holder_metadata(source_type, position)
 
-        source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
+        source_lv = create.create_source(
+            source_type, source_dims, holder_dims, from_gdml=True
+        )
 
         source_position = translate_to_detector_frame(
             source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
@@ -274,7 +266,7 @@ def construct(
                 z_pos_holder = -(z_pos + holder_dims.source.top_plate_height / 2)
 
                 # add plate
-                th_plate_lv = create_th_plate(source_dims, from_gdml=True)
+                th_plate_lv = create.create_th_plate(source_dims, from_gdml=True)
                 pv = _place_pv(
                     th_plate_lv, "th_plate_pv", lab_lv, reg, z_in_mm=z_pos_plates
                 )
@@ -321,7 +313,7 @@ def construct(
         reg.logicalVolumeDict["Source"].pygeom_color_rgba = [1, 0, 0, 0.9]
 
         if source_type != "am_HS1":
-            s_holder_lv = create_source_holder(
+            s_holder_lv = create.create_source_holder(
                 source_type,
                 holder_dims,
                 source_z=z_pos,
@@ -339,7 +331,7 @@ def construct(
 
     if source_type != "am_HS1":  # for am_HS1 the castle and plate are not present
         plate_meta = dim.get_bottom_plate_metadata()
-        plate_lv = create_bottom_plate(plate_meta, from_gdml=True)
+        plate_lv = create.create_bottom_plate(plate_meta, from_gdml=True)
         plate_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
@@ -362,7 +354,7 @@ def construct(
             table = 1
 
         castle_dims = dim.get_castle_dimensions(table)
-        castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
+        castle_lv = create.create_lead_castle(table, castle_dims, from_gdml=True)
         castle_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0

@@ -6,7 +6,7 @@ import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from pygeomhades.utils import read_gdml_with_replacements
+from .utils import read_gdml_with_replacements
 
 
 def create_vacuum_cavity(
