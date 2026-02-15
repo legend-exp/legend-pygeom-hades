@@ -18,7 +18,6 @@ def test_import():
 
 
 def test_construct():
-    daq_settings = AttrsDict({"flashcam": {"card_interface": "efb1"}})
     # test for a bege
     reg = construct(
         AttrsDict(
@@ -26,7 +25,7 @@ def test_construct():
                 "detector": "B00000B",
                 "campaign": "c1",
                 "measurement": "am_HS6_top_dlt",
-                "daq_settings": daq_settings,
+                "daq_settings": {"flashcam": {"card_interface": "efb1"}},
             }
         ),
         public_geometry=public_geom,
@@ -35,15 +34,13 @@ def test_construct():
     pygeomtools.geometry.check_registry_sanity(reg, reg)
 
     # test for table 2
-    daq_settings2 = AttrsDict({"flashcam": {"card_interface": "efb2"}})
-
     reg = construct(
         AttrsDict(
             {
                 "detector": "V02160B",
                 "campaign": "c1",
                 "measurement": "am_HS6_top_dlt",
-                "daq_settings": daq_settings2,
+                "daq_settings": {"flashcam": {"card_interface": "efb2"}},
             }
         ),
         public_geometry=public_geom,
@@ -62,7 +59,7 @@ def test_construct():
                     "detector": "V07302A",
                     "campaign": "c1",
                     "measurement": meas,
-                    "daq_settings": daq_settings2,
+                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
                     "source_position": pos,
                 }
             ),
@@ -82,7 +79,7 @@ def test_construct():
                     "detector": "V07302A",
                     "campaign": "c1",
                     "measurement": meas,
-                    "daq_settings": daq_settings2,
+                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
                     "source_position": pos,
                 }
             ),

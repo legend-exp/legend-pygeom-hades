@@ -3,14 +3,12 @@ from __future__ import annotations
 import contextlib
 import logging
 import math
-from importlib import resources
-from pathlib import Path
 
 import numpy as np
 import pygeomtools
-from dbetto import AttrsDict, TextDB
+from dbetto import AttrsDict
 from git import GitCommandError
-from legendmeta import LegendMetadata
+from legendmeta import HadesMetadata, LegendMetadata
 from matplotlib import pyplot as plt
 from pyg4ometry import geant4
 from pygeomhpges import make_hpge
@@ -28,13 +26,10 @@ from pygeomhades.create_volumes import (
     create_vacuum_cavity,
     create_wrap,
 )
-from pygeomhades.metadata import PublicMetadataProxy
+from pygeomhades.metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
 from pygeomhades.utils import get_profile, merge_configs, parse_measurement
 
 log = logging.getLogger(__name__)
-
-
-DEFAULT_ASSEMBLIES = {"hpge", "source", "lead_castle"}
 
 
 def _place_pv(
@@ -65,7 +60,6 @@ def _place_pv(
 
 def construct(
     config: AttrsDict,
-    extra_meta: TextDB | Path | str | None = None,
     public_geometry: bool = False,
     plot_profiles: bool = False,
 ) -> geant4.Registry:
@@ -110,15 +104,12 @@ def construct(
     run = config.get("run", None)
     table = int(config.daq_settings.flashcam.card_interface[-1])
 
-    if extra_meta is None:
-        extra_meta = TextDB(resources.files("pygeomhades") / "configs" / "holder_wrap")
-    elif not isinstance(extra_meta, TextDB):
-        extra_meta = TextDB(extra_meta)
-
     lmeta = None
+    hmeta = None
     if not public_geometry:
         with contextlib.suppress(GitCommandError):
             lmeta = LegendMetadata(lazy=True)
+            hmeta = HadesMetadata(lazy=True)
 
     # require user action to construct a testdata-only geometry (i.e. to avoid accidental creation of "wrong"
     # geometries by LEGEND members).
@@ -128,7 +119,8 @@ def construct(
 
     if lmeta is None:
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
-        lmeta = PublicMetadataProxy()
+        lmeta = PublicLegendMetadataProxy()
+        hmeta = PublicHadesMetadataProxy()
 
     # extract the measurement info
     measurement_info = parse_measurement(measurement)
@@ -137,7 +129,7 @@ def construct(
     source_type = measurement_info.source
 
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
-    hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
+    hpge_meta = merge_configs(diode_meta, hmeta.hardware.cryostat[hpge_name])
 
     reg = geant4.Registry()
 
