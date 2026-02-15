@@ -4,10 +4,6 @@ run0001:
   daq_settings:
     flashcam:
       card_interface: efb2
-      decay_time_in_ns: 46000
-      shaping_time_in_ns: 6000
-      signal_depth_in_samples: 22290
-      trigger_threshold: 300
   detector: V07302A
   measurement: co_HS5_top_dlt
   run: run0001

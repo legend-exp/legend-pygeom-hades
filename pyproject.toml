@@ -9,6 +9,9 @@ build-backend = "setuptools.build_meta"
 name = "legend_pygeom_hades"
 description = "Geometry model of the LEGEND HPGe test stand at HADES"
 authors = [
+    { name = "Valentina Biancacci", email = "valentina.biancacci@gssi.it" },
+    { name = "William Quinn", email = "william.quinn.14@ucl.ac.uk" },
+    { name = "Toby Dixon", email = "toby.dixon.23@ucl.ac.uk" },
     { name = "Luigi Pertoldi", email = "gipert@pm.me" },
 ]
 maintainers = [
@@ -36,7 +39,7 @@ dependencies = [
     "numpy",
     "pint",
     "pyg4ometry >=1.3.4",
-    "pylegendmeta >=v1.3.1",
+    "pylegendmeta >=v1.4",
     "pyyaml",
 ]
 dynamic = [
@@ -97,14 +100,11 @@ markers = [
     "needs_remage: tests that require a remage installation",
 ]
 
-
-
 [tool.codespell]
 ignore-words-list = "manuel,tre"
 
 [tool.ruff]
 src = ["src"]
-line-length = 110
 
 [tool.ruff.lint]
 extend-select = [
@@ -146,7 +146,6 @@ isort.required-imports = ["from __future__ import annotations"]
 "tests/**" = ["T20"]
 "noxfile.py" = ["T20"]
 
-
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
@@ -160,3 +159,6 @@ remage = ">=0.18,<0.19"
 [tool.pixi.environments]
 default = { solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
+
+[tool.pixi.feature.test.tasks]
+test = "pytest -vvv --runxfail"

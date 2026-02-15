@@ -27,56 +27,39 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install non-python (homebrew) dependencies
         if: ${{ matrix.os == 'macOS-latest' }}
         run: |
           brew update
           brew install opencascade cgal gmp mpfr boost
+
       - name: Get dependencies and install pygeomhades
         run: |
           python -m pip install --upgrade pip wheel setuptools
           python -m pip install --upgrade .[test]
 
-      - name: Set LEGEND/HADES_METADATA variables
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
+      - name: Run unit tests with public geometry
         run: |
-          echo "LEGEND_METADATA=$GITHUB_WORKSPACE/legend-metadata" >> $GITHUB_ENV
-          echo "HADES_METADATA=$GITHUB_WORKSPACE/hades-metadata" >> $GITHUB_ENV
-      - name: Clone legend-metadata
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        uses: actions/checkout@v6
-        with:
-          repository: legend-exp/legend-metadata
-          fetch-depth: 0
-          token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
-          submodules: "recursive"
-      - name: Clone hades-metadata
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        uses: actions/checkout@v6
-        with:
-          repository: legend-exp/hades-metadata
-          fetch-depth: 0
-          token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
-          submodules: "recursive"
+          python -m pytest -vvv
 
-      - name: Run unit tests
+      - name: Setup LEGEND/HADES metadata
+        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
+        if:
+          ${{ github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}
+        uses: ./.github/actions/setup-legend-hades-metadata
+        with:
+          token: ${{ secrets.CLONE_LEGEND_METADATA }}
+
+      - name: Run unit tests with full private metadata
         run: |
-          python -m pytest
+          python -m pytest -vvv
 
   test-remage:
     name: Test legend-pygeom-hades with remage
@@ -89,9 +72,22 @@ jobs:
         with:
           environments: test
 
-      - name: Run tests
+      - name: Run tests with public geometry
         run: |
-          pixi run -e test pytest --runxfail -m needs_remage
+          pixi run -e test pytest -vvv --runxfail -m needs_remage
+
+      - name: Setup LEGEND/HADES metadata
+        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
+        if:
+          ${{ github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}
+        uses: ./.github/actions/setup-legend-hades-metadata
+        with:
+          token: ${{ secrets.CLONE_LEGEND_METADATA }}
+
+      - name: Run tests with full private metadata
+        run: |
+          pixi run -e test pytest -vvv --runxfail -m needs_remage
 
   test-coverage:
     name: Calculate and upload test coverage
@@ -101,48 +97,26 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 2
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - name: Set LEGEND/HADES_METADATA variables
+      - name: Setup LEGEND/HADES metadata
         # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
         if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        run: |
-          echo "LEGEND_METADATA=$GITHUB_WORKSPACE/legend-metadata" >> $GITHUB_ENV
-          echo "HADES_METADATA=$GITHUB_WORKSPACE/hades-metadata" >> $GITHUB_ENV
-      - name: Clone legend-metadata
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        uses: actions/checkout@v6
+          ${{ github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}
+        uses: ./.github/actions/setup-legend-hades-metadata
         with:
-          repository: legend-exp/legend-metadata
-          fetch-depth: 0
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
-          submodules: "recursive"
-      - name: Clone hades-metadata
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        uses: actions/checkout@v6
-        with:
-          repository: legend-exp/hades-metadata
-          fetch-depth: 0
-          token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
-          submodules: "recursive"
 
       - name: Generate Report
         run: |
           python -m pip install --upgrade pip wheel setuptools
           python -m pip install --upgrade .[test]
           python -m pytest --cov=pygeomhades --cov-report=xml
+
       - name: Upload Coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
@@ -156,47 +130,25 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - name: Set LEGEND/HADES_METADATA variables
+      - name: Setup LEGEND/HADES metadata
         # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
         if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        run: |
-          echo "LEGEND_METADATA=$GITHUB_WORKSPACE/legend-metadata" >> $GITHUB_ENV
-          echo "HADES_METADATA=$GITHUB_WORKSPACE/hades-metadata" >> $GITHUB_ENV
-      - name: Clone legend-metadata
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        uses: actions/checkout@v6
+          ${{ github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}
+        uses: ./.github/actions/setup-legend-hades-metadata
         with:
-          repository: legend-exp/legend-metadata
-          fetch-depth: 0
           token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
-          submodules: "recursive"
-      - name: Clone hades-metadata
-        # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
-        if:
-          "${{ github.event_name != 'pull_request' ||
-          github.event.pull_request.head.repo.owner.login == 'legend-exp' }}"
-        uses: actions/checkout@v6
-        with:
-          repository: legend-exp/hades-metadata
-          fetch-depth: 0
-          token: ${{ secrets.CLONE_LEGEND_METADATA }}
-          path: ${{ env.LEGEND_METADATA }}
-          submodules: "recursive"
 
       - name: Setup build environment
         run: |
           python -m pip install --upgrade pip wheel setuptools
           python -m pip install --upgrade .[docs]
+
       - name: Build docs for current ref
         run: |
           cd docs

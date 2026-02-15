@@ -15,10 +15,10 @@ def parse_measurement(measurement: str) -> AttrsDict:
     """Parse a measurement string into its components.
 
     The measurement string is expected to be in the format
-    `{source}_{HSX}_{position}_{ID}` eg. "am_HS1_top_dlt".
+    ``{source}_{HSX}_{position}_{ID}``, e.g. "am_HS1_top_dlt".
 
-    For more details see [link](https://legend-exp.atlassian.net/wiki/spaces/LEGEND/pages/1826750480/Analysis+of+characterization+data+WIP).
-
+    For more details see
+    [link](https://legend-exp.atlassian.net/wiki/spaces/LEGEND/pages/1826750480/Analysis+of+characterization+data+WIP).
 
     Parameters
     ----------
@@ -28,9 +28,10 @@ def parse_measurement(measurement: str) -> AttrsDict:
     Returns
     -------
     AttrsDict
-        A dictionary with keys "source", "position", and "id" containing the parsed components of the measurement string.
-        For example, for "am_HS1_top_dlt", the returned
-        dictionary would be {"source": "am_HS1", "position": "top", "id": "dlt"}.
+        A dictionary with keys "source", "position", and "id" containing the
+        parsed components of the measurement string.  For example, for
+        "am_HS1_top_dlt", the returned dictionary would be ``{"source":
+        "am_HS1", "position": "top", "id": "dlt"}``.
     """
 
     split = measurement.split("_")
@@ -39,10 +40,14 @@ def parse_measurement(measurement: str) -> AttrsDict:
         msg = f"Measurement string '{measurement}' is not in the expected format '{{source_HSX}}_{{position}}_{{ID}}'."
         raise ValueError(msg)
 
-    return AttrsDict({"source": split[0] + "_" + split[1], "position": split[2], "id": split[3]})
+    return AttrsDict(
+        {"source": split[0] + "_" + split[1], "position": split[2], "id": split[3]}
+    )
 
 
-def merge_configs(diode_meta: AttrsDict, extra_meta: Mapping, *, extra_name: str = "hades") -> AttrsDict:
+def merge_configs(
+    diode_meta: AttrsDict, extra_meta: Mapping, *, extra_name: str = "hades"
+) -> AttrsDict:
     """Merge the configs from `diode_meta` to the extra information
     provided in `extra_meta`.
 
@@ -104,12 +109,16 @@ def get_profile(
     solid
         The solid to get the profile of.
     flip
-        Whether to flip the z. This is needed for the detector, which is placed with inverted axes in the cryostat.
+        Whether to flip the z. This is needed for the detector, which is placed
+        with inverted axes in the cryostat.
     """
     sign = -1 if flip else 1
 
     if isinstance(solid, geant4.solid.GenericPolycone):
-        return {"r": [*solid.pR, solid.pR[0]], "z": [sign * zt for zt in [*solid.pZ, solid.pZ[0]]]}
+        return {
+            "r": [*solid.pR, solid.pR[0]],
+            "z": [sign * zt for zt in [*solid.pZ, solid.pZ[0]]],
+        }
     if isinstance(solid, geant4.solid.Polycone):
         return {
             "z": [sign * zt for zt in [*solid.pZpl, *solid.pZpl[::-1], solid.pZpl[0]]],

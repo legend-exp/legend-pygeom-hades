@@ -3,38 +3,23 @@ from __future__ import annotations
 import contextlib
 import logging
 import math
-from importlib import resources
-from pathlib import Path
 
 import numpy as np
 import pygeomtools
-from dbetto import AttrsDict, TextDB
+from dbetto import AttrsDict
 from git import GitCommandError
-from legendmeta import LegendMetadata
+from legendmeta import HadesMetadata, LegendMetadata
 from matplotlib import pyplot as plt
 from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
-from pygeomhades import dimensions as dim
-from pygeomhades import plot
-from pygeomhades.create_volumes import (
-    create_bottom_plate,
-    create_cryostat,
-    create_holder,
-    create_lead_castle,
-    create_source,
-    create_source_holder,
-    create_th_plate,
-    create_vacuum_cavity,
-    create_wrap,
-)
-from pygeomhades.metadata import PublicMetadataProxy
-from pygeomhades.utils import get_profile, merge_configs, parse_measurement
+from . import create_volumes as create
+from . import dimensions as dim
+from . import plot
+from .metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
+from .utils import get_profile, merge_configs, parse_measurement
 
 log = logging.getLogger(__name__)
-
-
-DEFAULT_ASSEMBLIES = {"hpge", "source", "lead_castle"}
 
 
 def _place_pv(
@@ -65,7 +50,6 @@ def _place_pv(
 
 def construct(
     config: AttrsDict,
-    extra_meta: TextDB | Path | str | None = None,
     public_geometry: bool = False,
     plot_profiles: bool = False,
 ) -> geant4.Registry:
@@ -75,8 +59,6 @@ def construct(
 
     Parameters
     ----------
-    config
-
     config
       configuration dictionary defining the geometry, e.g.,
 
@@ -93,9 +75,6 @@ def construct(
             r_in_mm: 0.0
             z_in_mm: 38.0
 
-    extra_meta
-        Extra metadata needed to construct the geometry (or a path to it). If
-        `None` then this is taken as `pygeomhades/configs/holder_wrap`.
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
@@ -110,25 +89,23 @@ def construct(
     run = config.get("run", None)
     table = int(config.daq_settings.flashcam.card_interface[-1])
 
-    if extra_meta is None:
-        extra_meta = TextDB(resources.files("pygeomhades") / "configs" / "holder_wrap")
-    elif not isinstance(extra_meta, TextDB):
-        extra_meta = TextDB(extra_meta)
-
     lmeta = None
+    hmeta = None
     if not public_geometry:
         with contextlib.suppress(GitCommandError):
             lmeta = LegendMetadata(lazy=True)
+            hmeta = HadesMetadata(lazy=True)
 
-    # require user action to construct a testdata-only geometry (i.e. to avoid accidental creation of "wrong"
-    # geometries by LEGEND members).
+    # require user action to construct a testdata-only geometry (i.e. to avoid
+    # accidental creation of "wrong" geometries by LEGEND members).
     if lmeta is None and not public_geometry:
         msg = "cannot construct geometry from public testdata only, if not explicitly instructed"
         raise RuntimeError(msg)
 
     if lmeta is None:
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
-        lmeta = PublicMetadataProxy()
+        lmeta = PublicLegendMetadataProxy()
+        hmeta = PublicHadesMetadataProxy()
 
     # extract the measurement info
     measurement_info = parse_measurement(measurement)
@@ -137,7 +114,7 @@ def construct(
     source_type = measurement_info.source
 
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
-    hpge_meta = merge_configs(diode_meta, extra_meta[hpge_name])
+    hpge_meta = merge_configs(diode_meta, hmeta.hardware.cryostat[hpge_name])
 
     reg = geant4.Registry()
 
@@ -158,27 +135,40 @@ def construct(
         hpge_meta.type, hpge_meta.production.order, hpge_meta.production.slice
     )
 
-    cavity_lv = create_vacuum_cavity(cryostat_meta, reg)
+    cavity_lv = create.create_vacuum_cavity(cryostat_meta, reg)
     cavity_lv.pygeom_color_rgba = False
 
     # save the info for plotting
-    profiles["cavity"] = get_profile(cavity_lv.solid) | {"offset": cryostat_meta.position_cavity_from_top}
+    profiles["cavity"] = get_profile(cavity_lv.solid) | {
+        "offset": cryostat_meta.position_cavity_from_top
+    }
 
-    _place_pv(cavity_lv, "cavity_pv", lab_lv, reg, z_in_mm=cryostat_meta.position_cavity_from_top)
+    _place_pv(
+        cavity_lv,
+        "cavity_pv",
+        lab_lv,
+        reg,
+        z_in_mm=cryostat_meta.position_cavity_from_top,
+    )
 
     # construct the mylar wrap
-    wrap_lv = create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
+    wrap_lv = create.create_wrap(hpge_meta.hades.wrap.geometry, from_gdml=True)
     wrap_lv.pygeom_color_rgba = [1.0, 1.0, 1.0, 0.8]
 
     z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
     pv = _place_pv(wrap_lv, "wrap_pv", cavity_lv, reg, z_in_mm=z_pos)
 
-    profiles["wrap"] = get_profile(wrap_lv.solid) | {"offset": z_pos + profiles["cavity"]["offset"]}
+    profiles["wrap"] = get_profile(wrap_lv.solid) | {
+        "offset": z_pos + profiles["cavity"]["offset"]
+    }
     reg.addVolumeRecursive(pv)
 
     # construct the holder
-    holder_lv = create_holder(
-        hpge_meta.hades.holder.geometry, hpge_meta.type, hpge_meta.production.order, from_gdml=True
+    holder_lv = create.create_holder(
+        hpge_meta.hades.holder.geometry,
+        hpge_meta.type,
+        hpge_meta.production.order,
+        from_gdml=True,
     )
     holder_lv.pygeom_color_rgba = [0.0, 0.8, 0.2, 0.8]
 
@@ -186,20 +176,30 @@ def construct(
     pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
     reg.addVolumeRecursive(pv)
 
-    profiles["holder"] = get_profile(holder_lv.solid) | {"offset": z_pos + profiles["cavity"]["offset"]}
+    profiles["holder"] = get_profile(holder_lv.solid) | {
+        "offset": z_pos + profiles["cavity"]["offset"]
+    }
 
     # construct the hpge, for now do not allow cylindrical asymmetry
-    detector_lv = make_hpge(hpge_meta, name=hpge_meta.name, registry=reg, allow_cylindrical_asymmetry=False)
+    detector_lv = make_hpge(
+        hpge_meta, name=hpge_meta.name, registry=reg, allow_cylindrical_asymmetry=False
+    )
     detector_lv.pygeom_color_rgba = [0.33, 0.33, 0.33, 1.0]
 
     # an extra offset is needed to account for the different reference point
     # this is the top of the crystal in the original GDML but it's the p+ contact here
 
     extra_offset = max(detector_lv.get_profile()[1])
-    z_pos = hpge_meta.hades.detector.position - cryostat_meta.position_cavity_from_top + extra_offset
+    z_pos = (
+        hpge_meta.hades.detector.position
+        - cryostat_meta.position_cavity_from_top
+        + extra_offset
+    )
 
     # we need to flip the detector axes when placing it in the cryostat
-    pv = _place_pv(detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos, invert_z_axes=True)
+    pv = _place_pv(
+        detector_lv, hpge_meta.name, cavity_lv, reg, z_in_mm=z_pos, invert_z_axes=True
+    )
 
     profiles["detector"] = get_profile(detector_lv.solid, flip=True) | {
         "offset": z_pos + profiles["cavity"]["offset"]
@@ -214,7 +214,7 @@ def construct(
         )
     )
     # construct the cryostat
-    cryo_lv = create_cryostat(cryostat_meta, from_gdml=True)
+    cryo_lv = create.create_cryostat(cryostat_meta, from_gdml=True)
     cryo_lv.pygeom_color_rgba = [0.0, 0.2, 0.8, 0.5]
 
     pv = _place_pv(cryo_lv, "cryo_pv", lab_lv, reg)
@@ -224,7 +224,10 @@ def construct(
 
     if "source_position" in config:
         if source_pos is None:
-            msg = "requested a geometry with source but no source position information was provided"
+            msg = (
+                "requested a geometry with source but no "
+                "source position information was provided"
+            )
             raise RuntimeError(msg)
 
         if source_type not in ["am_HS1", "th_HS2"] and position == "lat":
@@ -234,7 +237,9 @@ def construct(
         source_dims = dim.get_source_metadata(source_type, position)
         holder_dims = dim.get_source_holder_metadata(source_type, position)
 
-        source_lv = create_source(source_type, source_dims, holder_dims, from_gdml=True)
+        source_lv = create.create_source(
+            source_type, source_dims, holder_dims, from_gdml=True
+        )
 
         source_position = translate_to_detector_frame(
             source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
@@ -254,17 +259,23 @@ def construct(
                     + source_dims.copper.bottom_height
                 )
                 z_pos_plates = -(
-                    z_pos + holder_dims.source.top_plate_height / 2 - source_dims.plates.height / 2
+                    z_pos
+                    + holder_dims.source.top_plate_height / 2
+                    - source_dims.plates.height / 2
                 )
                 z_pos_holder = -(z_pos + holder_dims.source.top_plate_height / 2)
 
                 # add plate
-                th_plate_lv = create_th_plate(source_dims, from_gdml=True)
-                pv = _place_pv(th_plate_lv, "th_plate_pv", lab_lv, reg, z_in_mm=z_pos_plates)
+                th_plate_lv = create.create_th_plate(source_dims, from_gdml=True)
+                pv = _place_pv(
+                    th_plate_lv, "th_plate_pv", lab_lv, reg, z_in_mm=z_pos_plates
+                )
                 reg.addVolumeRecursive(pv)
 
             elif position == "lat":  # lat
-                source_y_pos = holder_dims.outer_width / 2 + source_dims.copper.bottom_height
+                source_y_pos = (
+                    holder_dims.outer_width / 2 + source_dims.copper.bottom_height
+                )
                 z_pos_holder = z_pos
 
             else:
@@ -293,11 +304,16 @@ def construct(
             x_rot=0 if (position != "lat" or source_type != "th_HS2") else -np.pi / 2,
         )
         reg.addVolumeRecursive(pv)
-        reg.logicalVolumeDict[source_lv.name].pygeom_color_rgba = [0.66, 0.44, 0.26, 0.5]
+        reg.logicalVolumeDict[source_lv.name].pygeom_color_rgba = [
+            0.66,
+            0.44,
+            0.26,
+            0.5,
+        ]
         reg.logicalVolumeDict["Source"].pygeom_color_rgba = [1, 0, 0, 0.9]
 
         if source_type != "am_HS1":
-            s_holder_lv = create_source_holder(
+            s_holder_lv = create.create_source_holder(
                 source_type,
                 holder_dims,
                 source_z=z_pos,
@@ -306,14 +322,16 @@ def construct(
             )
             s_holder_lv.pygeom_color_rgba = [0, 1, 1, 0.5]
 
-            pv = _place_pv(s_holder_lv, "source_holder_pv", lab_lv, reg, z_in_mm=z_pos_holder)
+            pv = _place_pv(
+                s_holder_lv, "source_holder_pv", lab_lv, reg, z_in_mm=z_pos_holder
+            )
             reg.addVolumeRecursive(pv)
 
     # construct lead castle and bottom plate
 
     if source_type != "am_HS1":  # for am_HS1 the castle and plate are not present
         plate_meta = dim.get_bottom_plate_metadata()
-        plate_lv = create_bottom_plate(plate_meta, from_gdml=True)
+        plate_lv = create.create_bottom_plate(plate_meta, from_gdml=True)
         plate_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
@@ -336,7 +354,7 @@ def construct(
             table = 1
 
         castle_dims = dim.get_castle_dimensions(table)
-        castle_lv = create_lead_castle(table, castle_dims, from_gdml=True)
+        castle_lv = create.create_lead_castle(table, castle_dims, from_gdml=True)
         castle_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0
@@ -354,9 +372,11 @@ def construct(
 def translate_to_detector_frame(
     phi: float, r: float, z: float, source_type: str
 ) -> list[float, float, float]:
-    """Translate the source position from metadata to detector frame
+    """Translate the source position from metadata to detector frame.
 
-    In most cases this is purely a translation from cylindrical to Cartesian coordinates, but for the am_HS1 source there is an extra offset in r that is not well known.
+    In most cases this is purely a translation from cylindrical to Cartesian
+    coordinates, but for the am_HS1 source there is an extra offset in r that
+    is not well known.
 
     Parameters
     ----------
@@ -386,7 +406,10 @@ def translate_to_detector_frame(
             phi += 180
             r = abs(r)
 
-        msg = "Translation to detector from for am_HS1 and r!=0 is uncertain. Proceed with caution."
+        msg = (
+            "Translation to detector from for am_HS1 and "
+            "r!=0 is uncertain. Proceed with caution."
+        )
         log.warning(msg)
 
     phi = phi * math.pi / 180.0
