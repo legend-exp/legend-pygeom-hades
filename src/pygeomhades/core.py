@@ -243,7 +243,7 @@ def construct(
         )
 
         source_position = translate_to_detector_frame(
-            hpge_meta, hpge_name ,campaign, source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
+            hmeta, hpge_name ,campaign, source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
         )
 
         # source position in the detector frame
@@ -420,7 +420,7 @@ def translate_to_detector_frame(
             else:
                 r_center = min(r_positions, key=lambda x: abs(x - r_0)) # measurement closer to r=66mm
             r += - r_center 
-        
+            
         if r < 0:
             phi += 180
             r = abs(r)
