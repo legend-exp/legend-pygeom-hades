@@ -243,7 +243,13 @@ def construct(
         )
 
         source_position = translate_to_detector_frame(
-            hmeta, hpge_name ,campaign, source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
+            hmeta,
+            hpge_name,
+            campaign,
+            source_pos.phi_in_deg,
+            source_pos.r_in_mm,
+            source_pos.z_in_mm,
+            source_type,
         )
 
         # source position in the detector frame
@@ -371,7 +377,13 @@ def construct(
 
 
 def translate_to_detector_frame(
-    hmeta: HadesMetadata, hpge_name: str, campaign: str, phi: float, r: float, z: float, source_type: str
+    hmeta: HadesMetadata,
+    hpge_name: str,
+    campaign: str,
+    phi: float,
+    r: float,
+    z: float,
+    source_type: str,
 ) -> list[float, float, float]:
     """Translate the source position from metadata to detector frame.
 
@@ -402,25 +414,26 @@ def translate_to_detector_frame(
     """
 
     if source_type == "am_HS1" and r != 0:
-
         meas_am_top = hmeta.hardware.configuration[hpge_name][campaign].am_HS1_top_dlt
-        
+
         if meas_am_top is None:
             r += -66
             msg = (
-            "Translation to detector from for am_HS1 and "
-            "r!=0 is uncertain. Proceed with caution."
+                "Translation to detector from for am_HS1 and "
+                "r!=0 is uncertain. Proceed with caution."
             )
             log.warning(msg)
         else:
-            r_0 = 66  #average position (in mm) of the source when it is at the center of the detector
+            r_0 = 66  # average position (in mm) of the source when it is at the center of the detector
             r_positions = list(meas_am_top.group("source_position.r_in_mm").keys())
             if len(r_positions) == 3:
                 r_center = sorted(r_positions)[1]  # middle measurement
             else:
-                r_center = min(r_positions, key=lambda x: abs(x - r_0)) # measurement closer to r=66mm
-            r += - r_center 
-            
+                r_center = min(
+                    r_positions, key=lambda x: abs(x - r_0)
+                )  # measurement closer to r=66mm
+            r += -r_center
+
         if r < 0:
             phi += 180
             r = abs(r)
