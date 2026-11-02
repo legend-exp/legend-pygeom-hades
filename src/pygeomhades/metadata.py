@@ -20,7 +20,7 @@ class _DiodeProxy:
 
     def __getitem__(self, det_name: str) -> AttrsDict:
         det = self.dummy_detectors[det_name[0] + "99000A"]
-        m = copy.copy(det)
+        m = copy.deepcopy(det)
         m.name = det_name
         m.production.order = int(det_name[1:3])
         m.production.slice = "A"
@@ -42,7 +42,7 @@ class _CryostatProxy:
 
     def __getitem__(self, det_name: str) -> AttrsDict:
         det = self.dummy_cryostats[det_name[0] + "99000A"]
-        m = copy.copy(det)
+        m = copy.deepcopy(det)
         m.name = det_name
         return m
 

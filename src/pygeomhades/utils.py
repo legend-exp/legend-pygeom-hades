@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import logging
 import tempfile
 from collections.abc import Mapping
@@ -62,6 +63,8 @@ def merge_configs(
     extra_name
         name of the subdictionary to add the extra metadata to.
     """
+    diode_meta = copy.deepcopy(diode_meta)
+
     # make sure there is an enrichment value
     if diode_meta["production"]["enrichment"]["val"] is None:
         diode_meta["production"]["enrichment"]["val"] = 0.9  # reasonable value
