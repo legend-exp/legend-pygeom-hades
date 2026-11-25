@@ -44,32 +44,41 @@ def parse_measurement(measurement: str) -> AttrsDict:
     )
 
 
-def merge_configs(
-    diode_meta: AttrsDict, extra_meta: Mapping, *, extra_name: str = "hades"
-) -> AttrsDict:
-    """Merge the configs from `diode_meta` to the extra information
-    provided in `extra_meta`.
+def merge_configs(diode_meta: AttrsDict, hades_meta: Mapping) -> AttrsDict:
+    """Return a copy of `diode_meta` with `hades_meta` added as ``hades``.
 
-    This also adds the needed `enrichment` value if this is not present.
-
-    Parameters
-    ----------
-    diode_meta
-        The standard metadata for the diode.
-    extra_meta
-        Extra metadata to add.
-    extra_name
-        name of the subdictionary to add the extra metadata to.
+    A missing enrichment is set to 0.9, since the detector construction needs one.
     """
-    diode_meta = copy.deepcopy(diode_meta)
+    hpge = copy.deepcopy(diode_meta)
+    if hpge.production.enrichment.val is None:
+        hpge.production.enrichment.val = 0.9
+    hpge.hades = hades_meta
+    return hpge
 
-    # make sure there is an enrichment value
-    if diode_meta["production"]["enrichment"]["val"] is None:
-        diode_meta["production"]["enrichment"]["val"] = 0.9  # reasonable value
 
-    diode_meta[extra_name] = extra_meta
+def place(
+    lv: geant4.LogicalVolume,
+    mother: geant4.LogicalVolume,
+    registry: geant4.Registry,
+    *,
+    name: str | None = None,
+    x: float = 0,
+    y: float = 0,
+    z: float = 0,
+    rotation: tuple[float, float, float] = (0, 0, 0),
+) -> geant4.PhysicalVolume:
+    """Place `lv` in `mother` at (`x`, `y`, `z`) mm, rotated by `rotation` (rad).
 
-    return diode_meta
+    The physical volume is called `name`, or ``<lv name>_PV`` if not given.
+    """
+    return geant4.PhysicalVolume(
+        [*rotation, "rad"],
+        [x, y, z, "mm"],
+        lv,
+        name if name is not None else f"{lv.name}_PV",
+        mother,
+        registry=registry,
+    )
 
 
 def get_profile(
