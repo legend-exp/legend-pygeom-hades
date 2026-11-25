@@ -27,13 +27,20 @@ class _DiodeProxy:
         return m
 
     def keys(self):
-        return self.dummy_detector.keys()
+        return self.dummy_detectors.keys()
 
 
 class PublicHadesMetadataProxy:
     def __init__(self):
-        dummy = TextDB(resources.files("pygeomhades") / "configs/dummy/cryostat")
-        self.hardware = AttrsDict({"cryostat": _CryostatProxy(dummy)})
+        dummy = TextDB(resources.files("pygeomhades") / "configs/dummy")
+        self.hardware = AttrsDict(
+            {
+                "cryostat": _CryostatProxy(dummy.cryostat),
+                "setup": dummy.setup,
+                "sources": dummy.sources,
+                "source_holders": dummy.source_holders,
+            }
+        )
 
 
 class _CryostatProxy:

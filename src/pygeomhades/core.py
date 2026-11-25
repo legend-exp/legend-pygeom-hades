@@ -14,7 +14,6 @@ from pygeomhpges import make_hpge
 
 from . import colors, plot
 from . import create_volumes as create
-from . import dimensions as dim
 from .metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
 from .utils import get_profile, merge_configs, parse_measurement
 
@@ -54,7 +53,8 @@ def construct(
 ) -> geant4.Registry:
     """Construct the HADES geometry.
 
-    Returns the registry containing the world volume.
+    Returns the registry containing the world volume. The dimensions of all
+    components are read from the HADES metadata (``hardware/`` folder).
 
     Parameters
     ----------
@@ -64,16 +64,19 @@ def construct(
       .. code-block:: yaml
 
           detector: V13049A
+          measurement: th_HS2_top_psa
           daq_settings:
             flashcam:
-              card_interface: efb2
-          run: run0001
-          measurement: th_HS2_top_psa
+              card_interface: efb1
           source_position:
             phi_in_deg: 0.0
             r_in_mm: 0.0
             z_in_mm: 38.0
 
+      The card interface selects the measurement table and its lead castle
+      (``efb1``: table 1, ``efb2``: table 2). It is not needed for ``am_HS1``
+      (scanning table, no castle). Without ``source_position``, no source is
+      built.
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
@@ -84,9 +87,7 @@ def construct(
     profiles = {}
     hpge_name = config.detector
     measurement = config.measurement
-    source_pos = config.get("source_position", None)
-    run = config.get("run", None)
-    table = int(config.daq_settings.flashcam.card_interface[-1])
+    source_pos = config.get("source_position")
 
     lmeta = None
     hmeta = None
@@ -106,14 +107,14 @@ def construct(
         lmeta = PublicLegendMetadataProxy()
         hmeta = PublicHadesMetadataProxy()
 
-    # extract the measurement info
     measurement_info = parse_measurement(measurement)
-
     position = measurement_info.position
     source_type = measurement_info.source
 
     diode_meta = lmeta.hardware.detectors.germanium.diodes[hpge_name]
     hpge_meta = merge_configs(diode_meta, hmeta.hardware.cryostat[hpge_name])
+    cryostat_meta = hpge_meta.hades.cryostat
+    cavity_offset = cryostat_meta.position_cavity_from_top_in_mm
 
     reg = geant4.Registry()
 
@@ -128,35 +129,20 @@ def construct(
 
     _place_pv(lab_lv, "lab_lv", world_lv, reg, invert_z_axes=True)
 
-    # extract the metadata on the cryostat
-    cryostat_meta = dim.get_cryostat_metadata(
-        hpge_meta.type, hpge_meta.production.order, hpge_meta.production.slice
-    )
-
     cavity_lv = create.create_vacuum_cavity(cryostat_meta, reg)
 
     # save the info for plotting
-    profiles["cavity"] = get_profile(cavity_lv.solid) | {
-        "offset": cryostat_meta.position_cavity_from_top
-    }
+    profiles["cavity"] = get_profile(cavity_lv.solid) | {"offset": cavity_offset}
 
-    _place_pv(
-        cavity_lv,
-        "cavity_pv",
-        lab_lv,
-        reg,
-        z_in_mm=cryostat_meta.position_cavity_from_top,
-    )
+    _place_pv(cavity_lv, "cavity_pv", lab_lv, reg, z_in_mm=cavity_offset)
 
     # construct the wrap
     wrap_lv = create.create_wrap(hpge_meta.hades.wrap.geometry)
 
-    z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
+    z_pos = hpge_meta.hades.wrap.position_in_mm - cavity_offset
     pv = _place_pv(wrap_lv, "wrap_pv", cavity_lv, reg, z_in_mm=z_pos)
 
-    profiles["wrap"] = get_profile(wrap_lv.solid) | {
-        "offset": z_pos + profiles["cavity"]["offset"]
-    }
+    profiles["wrap"] = get_profile(wrap_lv.solid) | {"offset": z_pos + cavity_offset}
     reg.addVolumeRecursive(pv)
 
     # construct the holder
@@ -164,12 +150,12 @@ def construct(
         hpge_meta.hades.holder.geometry, hpge_meta.type, hpge_meta.production.order
     )
 
-    z_pos = hpge_meta.hades.holder.position - cryostat_meta.position_cavity_from_top
+    z_pos = hpge_meta.hades.holder.position_in_mm - cavity_offset
     pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
     reg.addVolumeRecursive(pv)
 
     profiles["holder"] = get_profile(holder_lv.solid) | {
-        "offset": z_pos + profiles["cavity"]["offset"]
+        "offset": z_pos + cavity_offset
     }
 
     # construct the hpge, for now do not allow cylindrical asymmetry
@@ -182,11 +168,7 @@ def construct(
     # contact for the detector
 
     extra_offset = max(detector_lv.get_profile()[1])
-    z_pos = (
-        hpge_meta.hades.detector.position
-        - cryostat_meta.position_cavity_from_top
-        + extra_offset
-    )
+    z_pos = hpge_meta.hades.detector.position_in_mm - cavity_offset + extra_offset
 
     # we need to flip the detector axes when placing it in the cryostat
     pv = _place_pv(
@@ -194,7 +176,7 @@ def construct(
     )
 
     profiles["detector"] = get_profile(detector_lv.solid, flip=True) | {
-        "offset": z_pos + profiles["cavity"]["offset"]
+        "offset": z_pos + cavity_offset
     }
 
     # register the detector info for remage
@@ -213,74 +195,53 @@ def construct(
 
     reg.addVolumeRecursive(pv)
 
-    if "source_position" in config:
-        if source_pos is None:
-            msg = (
-                "requested a geometry with source but no "
-                "source position information was provided"
-            )
-            raise RuntimeError(msg)
-
+    if source_pos is not None:
         if source_type not in ["am_HS1", "th_HS2"] and position == "lat":
             msg = f"lateral position not implemented for source type {source_type}"
             raise NotImplementedError(msg)
 
-        source_dims = dim.get_source_metadata(source_type, position)
-        holder_dims = dim.get_source_holder_metadata(source_type, position)
-
-        source_lv = create.create_source(source_type, source_dims, holder_dims)
-
-        source_position = translate_to_detector_frame(
-            source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
+        source_dims = hmeta.hardware.sources[source_type]
+        holder_name = source_dims.get("source_holder", {}).get(position)
+        holder_dims = (
+            hmeta.hardware.source_holders[holder_name] if holder_name else None
         )
 
+        source_lv = create.create_source(source_type, source_dims, position)
+
         # source position in the detector frame
-        x_pos, y_pos, z_pos = source_position
+        x_pos, y_pos, z_pos = translate_to_detector_frame(
+            source_pos.phi_in_deg, source_pos.r_in_mm, source_pos.z_in_mm, source_type
+        )
         source_y_pos = y_pos
-        source_z_pos = z_pos
 
-        if source_type == "th_HS2":
-            if position == "top":
-                source_z_pos = -(
-                    z_pos
-                    + holder_dims.source.top_plate_height / 2
-                    + source_dims.copper.height
-                    + source_dims.copper.bottom_height
-                )
-                z_pos_plates = -(
-                    z_pos
-                    + holder_dims.source.top_plate_height / 2
-                    - source_dims.plates.height / 2
-                )
-                z_pos_holder = -(z_pos + holder_dims.source.top_plate_height / 2)
-
-                # add plate
-                th_plate_lv = create.create_th_plate(source_dims)
-                pv = _place_pv(
-                    th_plate_lv, "th_plate_pv", lab_lv, reg, z_in_mm=z_pos_plates
-                )
-                reg.addVolumeRecursive(pv)
-
-            elif position == "lat":  # lat
-                source_y_pos = (
-                    holder_dims.outer_width / 2 + source_dims.copper.bottom_height
-                )
-                z_pos_holder = z_pos
-
-            else:
-                msg = f" position {position} not implemented."
-                raise NotImplementedError(msg)
-
-        elif source_type == "am_HS1":
-            source_z_pos = -(z_pos + source_dims.collimator.height / 2)
-
-        elif source_type in {"co_HS5", "ba_HS4", "am_HS6"}:
-            z_pos_holder = -(z_pos + holder_dims.source.top_plate_height / 2)
+        if source_type == "am_HS1":
+            source_z_pos = -(z_pos + source_dims.collimator.height_in_mm / 2)
+        elif source_type == "th_HS2" and position == "lat":
+            copper = source_dims.copper
+            source_y_pos = (
+                holder_dims.outer_width_in_mm / 2 + copper.bottom_height_in_mm
+            )
+            source_z_pos = z_pos
+            z_pos_holder = z_pos
+        else:
+            z_pos_holder = -(z_pos + holder_dims.top_plate_height_in_mm / 2)
             source_z_pos = -z_pos
 
-        else:
-            msg = f" Source type {source_type} not implemented."
-            raise NotImplementedError(msg)
+        if source_type == "th_HS2" and position == "top":
+            copper = source_dims.copper
+            plates = source_dims.plates
+            source_z_pos = (
+                z_pos_holder - copper.height_in_mm - copper.bottom_height_in_mm
+            )
+            th_plate_lv = create.create_th_plate(plates)
+            pv = _place_pv(
+                th_plate_lv,
+                "th_plate_pv",
+                lab_lv,
+                reg,
+                z_in_mm=z_pos_holder + plates.height_in_mm / 2,
+            )
+            reg.addVolumeRecursive(pv)
 
         pv = _place_pv(
             source_lv,
@@ -290,14 +251,12 @@ def construct(
             x_in_mm=x_pos,
             y_in_mm=source_y_pos,
             z_in_mm=source_z_pos,
-            x_rot=0 if (position != "lat" or source_type != "th_HS2") else -np.pi / 2,
+            x_rot=-np.pi / 2 if (source_type == "th_HS2" and position == "lat") else 0,
         )
         reg.addVolumeRecursive(pv)
 
-        if source_type != "am_HS1":
-            s_holder_lv = create.create_source_holder(
-                source_type, holder_dims, source_z=z_pos, meas_type=position
-            )
+        if holder_dims is not None:
+            s_holder_lv = create.create_source_holder(holder_dims, source_z=z_pos)
 
             pv = _place_pv(
                 s_holder_lv, "source_holder_pv", lab_lv, reg, z_in_mm=z_pos_holder
@@ -307,32 +266,31 @@ def construct(
     # construct lead castle and bottom plate
 
     if source_type != "am_HS1":  # for am_HS1 the castle and plate are not present
-        plate_meta = dim.get_bottom_plate_metadata()
+        setup = hmeta.hardware.setup
+
+        # depth of the top of the bottom plate, on which the castle stands, below
+        # the cryostat top. Not measured: assumed for all detectors and tables
+        plate_depth_in_mm = 250.0
+
+        plate_meta = setup.bottom_plate
         plate_lv = create.create_bottom_plate(plate_meta)
 
-        z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
+        z_pos = plate_depth_in_mm + plate_meta.height_in_mm / 2
         pv = _place_pv(plate_lv, "plate_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-        # FIXME:
-        # it seems that at the beginning, when tables 1 and 2 were still
-        # different, the card interference didn't match the table yet because
-        # during the buildup of the stations and lead castle it might have been
-        # possible that Yoann replugged the stations. So it isn't so
-        # straightforward to get the initial table info by looking at the cards
-        if hpge_name in {"V02160B", "V02166B"} or (
-            hpge_name == "V02160A"
-            and measurement == "th_HS2_lat_psa"
-            and run in {"r002", "r003", "r004", "r005"}
-        ):
-            table = 2
-        else:
-            table = 1
+        card = config.daq_settings.flashcam.card_interface
+        table = {"efb1": 1, "efb2": 2}.get(card)
+        if table is None:
+            msg = (
+                f"card interface {card!r} is not one of the static tables (efb1, efb2)"
+            )
+            raise ValueError(msg)
 
-        castle_dims = dim.get_castle_dimensions(table)
+        castle_dims = setup.lead_castle[f"table{table}"]
         castle_lv = create.create_lead_castle(table, castle_dims)
 
-        z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0
+        z_pos = plate_depth_in_mm - castle_dims.base.height_in_mm / 2
         pv = _place_pv(castle_lv, "castle_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 

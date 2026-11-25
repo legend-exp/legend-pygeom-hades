@@ -58,7 +58,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
                     "detector": det,
                     "campaign": "c1",
                     "measurement": "am_HS1_top_dlt",
-                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
                 }
             ),
             public_geometry=public_geom,

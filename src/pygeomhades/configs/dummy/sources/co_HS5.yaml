@@ -1,0 +1,11 @@
+width_in_mm: 5.0
+height_in_mm: 0.1
+foil:
+  width_in_mm: 20
+  height_in_mm: 0.5
+al_ring:
+  width_max_in_mm: 30
+  width_min_in_mm: 20
+  height_in_mm: 3.0
+source_holder:
+  top: top

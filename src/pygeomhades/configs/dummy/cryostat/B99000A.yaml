@@ -1,6 +1,12 @@
+cryostat:
+  height_in_mm: 122.2
+  position_cavity_from_bottom_in_mm: 0.8
+  position_cavity_from_top_in_mm: 1.5
+  thickness_in_mm: 1.5
+  width_in_mm: 101.6
 detector:
   name: B99000A
-  position: 8.0
+  position_in_mm: 8.0
 holder:
   geometry:
     bottom_cyl:
@@ -25,7 +31,7 @@ holder:
       position_bottom_ring_in_mm: 51.4
       position_top_ring_in_mm: 14.0
       radius_in_mm: 44.5
-  position: 7.0
+  position_in_mm: 7.0
 wrap:
   geometry:
     inner:
@@ -34,4 +40,4 @@ wrap:
     outer:
       height_in_mm: 82.0
       radius_in_mm: 41.2
-  position: 7.0
+  position_in_mm: 7.0

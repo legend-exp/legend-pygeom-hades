@@ -1,0 +1,30 @@
+width_in_mm: 1.0
+height_in_mm: 1.0
+capsule:
+  width_in_mm: 2.0
+  height_in_mm: 7.0
+epoxy:
+  width_in_mm: 1.6
+  height_in_mm: 2.2
+plates:
+  width_in_mm: 8.0
+  height_in_mm: 2.0
+  cavity_width_in_mm: 2.0
+copper:
+  width_in_mm: 32.0
+  height_in_mm: 30.0
+  cavity_width_in_mm: 3.0
+  bottom_width_in_mm: 50.0
+  bottom_height_in_mm: 3.0
+collimator:
+  width_in_mm: 30.0
+  depth_in_mm: 30.0
+  height_in_mm: 30.0
+  beam_width_in_mm: 1.0
+  beam_height_in_mm: 15.0
+offset_height_in_mm:
+  top: 0.0
+  lat: 18.0
+source_holder:
+  top: top
+  lat: lat
