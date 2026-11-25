@@ -25,12 +25,3 @@ Other volume names can be found by inspecting the GDML file, but are not
 expected to be needed for simulations.
 
 :::
-
-## Construction from GDML templates or Python
-
-Each geometry component is built by a function in
-{mod}`pygeomhades.create_volumes`. By default {func}`pygeomhades.core.construct`
-builds the components directly with _pyg4ometry_. With `from_gdml=True` it reads
-them from GDML templates instead, filling in the dimensions from the metadata.
-Both methods give the same volumes, placements and materials, except that the
-GDML templates round every dimension to 0.1 mm.

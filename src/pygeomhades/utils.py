@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import copy
 import logging
-import tempfile
 from collections.abc import Mapping
-from pathlib import Path
 
 from dbetto import AttrsDict
-from pyg4ometry import gdml, geant4
+from pyg4ometry import geant4
 
 log = logging.getLogger(__name__)
 
@@ -72,34 +70,6 @@ def merge_configs(
     diode_meta[extra_name] = extra_meta
 
     return diode_meta
-
-
-def read_gdml_with_replacements(
-    dummy_gdml_path: Path, replacements: Mapping
-) -> geant4.LogicalVolume | dict[str, geant4.LogicalVolume]:
-    """Read a GDML file including replacements.
-
-    Parameters
-    ----------
-    dummy_gdml_path
-        path to the GDML template.
-    replacements
-        Constants in the GDML file to replace.
-    """
-
-    gdml_text = dummy_gdml_path.read_text()
-
-    for key, val in replacements.items():
-        gdml_text = gdml_text.replace(key, f"{val:.1f}")
-
-    with tempfile.NamedTemporaryFile("w+", suffix=".gdml") as f:
-        f.write(gdml_text)
-        f.flush()
-
-        reader = gdml.Reader(f.name)
-        reg_tmp = reader.getRegistry()
-
-    return reg_tmp.worldVolume
 
 
 def get_profile(
