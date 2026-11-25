@@ -30,7 +30,7 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
             {"origin": [0, 0, 0], "normal": [1, 0, 0], "close_cuts": False}
         ]
 
-    if vis_scene.get("fine_mesh", False) or args.check_overlaps:
+    if (args.visualize and vis_scene.get("fine_mesh", True)) or args.check_overlaps:
         meshconfig.setGlobalMeshSliceAndStack(100)
 
     config = AttrsDict(utils.load_dict(args.config))
