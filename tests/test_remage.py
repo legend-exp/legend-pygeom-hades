@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import os
-
 import pytest
 
-public_geom = os.getenv("LEGEND_METADATA", "") == ""
-
 pytestmark = [
-    pytest.mark.xfail(run=True, reason="requires a remage installation"),
     pytest.mark.needs_remage,
     pytest.mark.filterwarnings(
         "ignore:lgdo.lh5 has moved to its own package:DeprecationWarning"

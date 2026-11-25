@@ -91,7 +91,7 @@ namespaces = false
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "-m", "not needs_remage"]
 xfail_strict = true
 filterwarnings = "error"
 log_cli_level = "info"
@@ -161,4 +161,6 @@ default = { solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
 
 [tool.pixi.feature.test.tasks]
-test = "pytest -vvv --runxfail"
+test-python = { description = "Run the tests that do not need remage", cmd = "pytest -vvv" }
+test-remage = { description = "Run the tests that need remage (geometry overlap checks)", cmd = "pytest -vvv -m needs_remage" }
+test = { description = "Run all tests", depends-on = ["test-python", "test-remage"] }
