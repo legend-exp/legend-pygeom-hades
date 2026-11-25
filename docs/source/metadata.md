@@ -24,10 +24,13 @@ diameter.
   holder and wrap entries of a new detector can be created with
   [this tool](https://github.com/legend-exp/legend-g4simple-simulation/blob/master/tools/createICPCFiles.py).
 - `setup/bottom_plate`: the aluminium plate between cryostat and lead castle.
-- `setup/lead_castle/table1`, `setup/lead_castle/table2`: the lead castles of
-  the two static measurement tables. The table of a run is given by its FlashCam
-  card interface (`daq_settings.flashcam.card_interface`): `efb1` for table 1,
-  `efb2` for table 2, `efb3` for the scanning table, which has no lead castle.
+- `setup/lead_castle/legend`, `setup/lead_castle/gerda`: the two lead castle
+  designs, the current one and the one of the GERDA era.
+- `setup/table_castles`: the castle design on each static table as a function of
+  time (validity file); the castle of a run is the one valid at its
+  `run_start_time`. The table of a run is given by its FlashCam card interface
+  (`daq_settings.flashcam.card_interface`): `efb1` for table 1, `efb2` for table
+  2, `efb3` for the scanning table, which has no lead castle.
 - `setup/table_exceptions`: runs whose table is not the one given by their card
   interface.
 - `sources/<source>`: the radioactive sources (e.g. `th_HS2`) with their

@@ -38,10 +38,23 @@ def test_import():
                     "detector": "V02160B",
                     "campaign": "c1",
                     "measurement": "am_HS6_top_dlt",
+                    "run_start_time": "191023T154500",
                     "daq_settings": {"flashcam": {"card_interface": "efb2"}},
                 }
             ),
             True,
+        ),
+        (
+            AttrsDict(
+                {
+                    "detector": "V02160B",
+                    "campaign": "c1",
+                    "measurement": "am_HS6_top_dlt",
+                    "run_start_time": "200826T092000",
+                    "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                }
+            ),
+            False,
         ),
         *[
             (
@@ -101,6 +114,7 @@ def test_import():
                     {
                         "detector": "V02160A",
                         "run": run,
+                        "run_start_time": start,
                         "measurement": "th_HS2_lat_psa",
                         "daq_settings": {"flashcam": {"card_interface": card}},
                         "source_position": AttrsDict(
@@ -110,15 +124,16 @@ def test_import():
                 ),
                 table2,
             )
-            for run, card, table2 in [
-                ("run0001", "efb1", False),
-                ("run0003", "efb2", True),
+            for run, start, card, table2 in [
+                ("run0001", "191023T091515", "efb1", False),
+                ("run0003", "191105T103952", "efb2", True),
             ]
         ],
     ],
     ids=[
         "bege_efb1_am_HS6_top_dlt",
-        "table2_efb2_am_HS6_top_dlt",
+        "table2_2019_gerda_castle",
+        "table2_2020_legend_castle",
         "source_am_HS1_top_dlt",
         "source_th_HS2_top_dlt",
         "source_ba_HS4_top_dlt",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from datetime import UTC, datetime
 
 import numpy as np
 import pygeomtools
@@ -56,7 +57,9 @@ def construct(
 
       The card interface gives the measurement table (``efb1``: static table 1,
       ``efb2``: static table 2, ``efb3``: scanning table, without lead castle),
-      except for the runs listed in ``hardware/setup/table_exceptions``.
+      except for the runs listed in ``hardware/setup/table_exceptions``. The
+      lead castle of the table is taken at ``run_start_time`` (format
+      ``YYMMDDTHHMMSS``), or for the current setup if it is missing.
       Without ``source_position``, no source is built.
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
@@ -201,8 +204,15 @@ def construct(
         pv = place(plate_lv, lab_lv, reg, name="plate_pv", z=z)
         reg.addVolumeRecursive(pv)
 
-        castle = setup.lead_castle[table]
-        castle_lv = make_lead_castle(int(table[-1]), castle)
+        # the castle of each table depends on the date of the run (validity in
+        # hardware/setup/table_castles); without a date, the current setup
+        castles = setup.table_castles.on(
+            f"20{config.run_start_time}Z"
+            if "run_start_time" in config
+            else datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        )
+        castle = setup.lead_castle[castles[table]]
+        castle_lv = make_lead_castle(castle)
 
         z = plate_depth_in_mm - castle.base.height_in_mm / 2
         pv = place(castle_lv, lab_lv, reg, name="castle_pv", z=z)
