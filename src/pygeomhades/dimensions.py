@@ -167,7 +167,9 @@ def get_source_metadata(source_type: str, meas_type: str = "") -> AttrsDict:
             "capsule": {
                 "width": 11.08,
                 "depth": 23.08,
-                "height": 2.02,
+                # FIXME: height not documented. It must not exceed the height of
+                # the pocket in the source holder (top_plate_height)
+                "height": 2.0,
             },
         }
     elif source_type == "co_HS5":
