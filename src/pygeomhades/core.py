@@ -54,10 +54,10 @@ def construct(
             r_in_mm: 0.0
             z_in_mm: 38.0
 
-      The card interface selects the measurement table and its lead castle
-      (``efb1``: table 1, ``efb2``: table 2). It is not needed for ``am_HS1``
-      (scanning table, no castle). Without ``source_position``, no source is
-      built.
+      The card interface gives the measurement table (``efb1``: static table 1,
+      ``efb2``: static table 2, ``efb3``: scanning table, without lead castle),
+      except for the runs listed in ``hardware/setup/table_exceptions``.
+      Without ``source_position``, no source is built.
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata.
@@ -176,11 +176,20 @@ def construct(
             hmeta.hardware, source_type, position, source_position, lab_lv, reg
         )
 
-    # construct lead castle and bottom plate
+    # the measurement table is given by the FlashCam card, except for the runs
+    # listed in hardware/setup/table_exceptions
+    setup = hmeta.hardware.setup
+    card = config.daq_settings.flashcam.card_interface
+    tables = {"efb1": "table1", "efb2": "table2", "efb3": "scanning"}
+    if card not in tables:
+        msg = f"unknown card interface {card!r}, expected one of {list(tables)}"
+        raise ValueError(msg)
+    table = setup.table_exceptions.get(hpge_name, {}).get(
+        config.measurement, tables[card]
+    )
 
-    if source_type != "am_HS1":  # for am_HS1 the castle and plate are not present
-        setup = hmeta.hardware.setup
-
+    # the static tables have a lead castle standing on the bottom plate
+    if table != "scanning":
         # depth of the top of the bottom plate, on which the castle stands, below
         # the cryostat top. Not measured: assumed for all detectors and tables
         plate_depth_in_mm = 250.0
@@ -192,16 +201,8 @@ def construct(
         pv = place(plate_lv, lab_lv, reg, name="plate_pv", z=z)
         reg.addVolumeRecursive(pv)
 
-        card = config.daq_settings.flashcam.card_interface
-        table = {"efb1": 1, "efb2": 2}.get(card)
-        if table is None:
-            msg = (
-                f"card interface {card!r} is not one of the static tables (efb1, efb2)"
-            )
-            raise ValueError(msg)
-
-        castle = setup.lead_castle[f"table{table}"]
-        castle_lv = make_lead_castle(table, castle)
+        castle = setup.lead_castle[table]
+        castle_lv = make_lead_castle(int(table[-1]), castle)
 
         z = plate_depth_in_mm - castle.base.height_in_mm / 2
         pv = place(castle_lv, lab_lv, reg, name="castle_pv", z=z)
