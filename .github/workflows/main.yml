@@ -74,7 +74,7 @@ jobs:
 
       - name: Run tests with public geometry
         run: |
-          pixi run -e test pytest -vvv --runxfail -m needs_remage
+          pixi run -e test test-remage
 
       - name: Setup LEGEND/HADES metadata
         # secrets are not available in PRs from forks, so do not even attempt to clone metadata.
@@ -87,7 +87,7 @@ jobs:
 
       - name: Run tests with full private metadata
         run: |
-          pixi run -e test pytest -vvv --runxfail -m needs_remage
+          pixi run -e test test-remage
 
   test-coverage:
     name: Calculate and upload test coverage
