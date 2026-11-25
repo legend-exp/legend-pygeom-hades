@@ -28,7 +28,7 @@ def make_bottom_plate(plate: AttrsDict) -> geant4.LogicalVolume:
 
 
 def make_lead_castle(table: int, castle: AttrsDict) -> geant4.LogicalVolume:
-    """Create the lead solid of table 1 or 2.
+    """Create the lead castle of table 1 or 2.
 
     `castle` is ``hardware/setup/lead_castle/table<table>``.
     """
@@ -116,7 +116,7 @@ def make_lead_castle(table: int, castle: AttrsDict) -> geant4.LogicalVolume:
         reg,
     )
     castle_lv = geant4.LogicalVolume(
-        solid, get_material("lead_table2", reg), "Lead_castle", reg
+        solid, get_material("lead", reg), "Lead_castle", reg
     )
     # FIXME: the copper plate lies in the gap between base and top, i.e.
     # outside of its mother volume

@@ -11,10 +11,10 @@ def test_make_cavity():
     cryostat = AttrsDict(
         {
             "width_in_mm": 200,
-            "thickness_in_mm": 1,
+            "side_thickness_in_mm": 1,
             "height_in_mm": 200,
-            "position_cavity_from_top_in_mm": 1,
-            "position_cavity_from_bottom_in_mm": 1,
+            "top_thickness_in_mm": 1,
+            "bottom_thickness_in_mm": 1,
         }
     )
 
@@ -79,15 +79,15 @@ def test_make_holder():
     )
 
     # test with bege
-    lv = make_holder(holder, "bege", order=0)
+    lv = make_holder(holder, "bege")
     assert isinstance(lv, geant4.LogicalVolume)
 
-    lv = make_holder(holder, "icpc", order=0)
+    lv = make_holder(holder, "icpc")
     assert isinstance(lv, geant4.LogicalVolume)
 
     with pytest.raises(NotImplementedError):
-        make_holder(holder, "coax", order=0)
+        make_holder(holder, "coax")
 
     holder.pop("rings")  # remove rings for batch 6
-    lv = make_holder(holder, "icpc", order=6)
+    lv = make_holder(holder, "icpc")
     assert isinstance(lv, geant4.LogicalVolume)

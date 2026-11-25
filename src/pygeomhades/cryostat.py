@@ -18,11 +18,11 @@ def make_vacuum_cavity(
     `cryostat` is the ``cryostat`` block of ``hardware/cryostat/<detector>``.
     The cavity starts at z = 0.
     """
-    radius = cryostat.width_in_mm / 2 - cryostat.thickness_in_mm
+    radius = cryostat.width_in_mm / 2 - cryostat.side_thickness_in_mm
     height = (
         cryostat.height_in_mm
-        - cryostat.position_cavity_from_top_in_mm
-        - cryostat.position_cavity_from_bottom_in_mm
+        - cryostat.top_thickness_in_mm
+        - cryostat.bottom_thickness_in_mm
     )
     vacuum_cavity = geant4.solid.GenericPolycone(
         "vacuum_cavity",
@@ -45,9 +45,9 @@ def make_cryostat(cryostat: AttrsDict) -> geant4.LogicalVolume:
     """
     reg = geant4.Registry()
     r_out = cryostat.width_in_mm / 2
-    r_in = r_out - cryostat.thickness_in_mm
-    start = cryostat.position_cavity_from_top_in_mm
-    end = cryostat.height_in_mm - cryostat.position_cavity_from_bottom_in_mm
+    r_in = r_out - cryostat.side_thickness_in_mm
+    start = cryostat.top_thickness_in_mm
+    end = cryostat.height_in_mm - cryostat.bottom_thickness_in_mm
 
     solid = polycone(
         "cryostat",
@@ -92,7 +92,7 @@ def make_wrap(wrap: AttrsDict) -> geant4.LogicalVolume:
     return geant4.LogicalVolume(solid, get_material("hd1000", reg), "Wrap", reg)
 
 
-def make_holder(holder: AttrsDict, det_type: str, order: int) -> geant4.LogicalVolume:
+def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
     """Create the detector holder.
 
     Parameters
@@ -100,9 +100,8 @@ def make_holder(holder: AttrsDict, det_type: str, order: int) -> geant4.LogicalV
     holder
         The ``holder.geometry`` block of ``hardware/cryostat/<detector>``.
     det_type
-        Detector type (``icpc`` or ``bege``).
-    order
-        The detector production batch.
+        Detector type (``icpc`` or ``bege``). ICPC holders without ``rings`` (e.g.
+        production order 6) are built without rings and lip.
     """
     reg = geant4.Registry()
     cyl = holder.cylinder
@@ -127,8 +126,7 @@ def make_holder(holder: AttrsDict, det_type: str, order: int) -> geant4.LogicalV
             (h_out + bot.outer.height_in_mm, 0, b_out),
         ]
 
-        if order == 6:
-            # batch 6 holders have no rings
+        if "rings" not in holder:
             planes = [(0, r_in, r_out), *bottom_planes]
         else:
             # a lip at z = 0 and two rings, all with the maximum radius

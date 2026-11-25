@@ -36,7 +36,6 @@ _MATERIALS = {
     ),
     "aluminium": ("Al", 2.7, {"fractions": {"Al": 1}}),
     "lead": ("Pb", 11.35, {"fractions": {"Pb": 1}}),
-    "lead_table2": ("metalPb", 11.34, {"fractions": {"Pb": 1}}),
     "copper": ("metalCu", 8.96, {"fractions": {"Cu": 1}}),
     "steel": (
         "Ssteel",
