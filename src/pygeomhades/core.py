@@ -12,9 +12,9 @@ from legendmeta import HadesMetadata, LegendMetadata
 from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
+from . import colors, plot
 from . import create_volumes as create
 from . import dimensions as dim
-from . import plot
 from .metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
 from .utils import get_profile, merge_configs, parse_measurement
 
@@ -125,7 +125,6 @@ def construct(
     # place a box rotated 180 deg so the geometry is not upside down
     lab = geant4.solid.Box("lab", 18, 18, 18, reg, "m")
     lab_lv = geant4.LogicalVolume(lab, "G4_AIR", "lab_lv", reg)
-    lab_lv.pygeom_color_rgba = False
 
     _place_pv(lab_lv, "lab_lv", world_lv, reg, invert_z_axes=True)
 
@@ -135,7 +134,6 @@ def construct(
     )
 
     cavity_lv = create.create_vacuum_cavity(cryostat_meta, reg)
-    cavity_lv.pygeom_color_rgba = False
 
     # save the info for plotting
     profiles["cavity"] = get_profile(cavity_lv.solid) | {
@@ -152,7 +150,6 @@ def construct(
 
     # construct the wrap
     wrap_lv = create.create_wrap(hpge_meta.hades.wrap.geometry)
-    wrap_lv.pygeom_color_rgba = [1.0, 1.0, 1.0, 0.8]
 
     z_pos = hpge_meta.hades.wrap.position - cryostat_meta.position_cavity_from_top
     pv = _place_pv(wrap_lv, "wrap_pv", cavity_lv, reg, z_in_mm=z_pos)
@@ -166,7 +163,6 @@ def construct(
     holder_lv = create.create_holder(
         hpge_meta.hades.holder.geometry, hpge_meta.type, hpge_meta.production.order
     )
-    holder_lv.pygeom_color_rgba = [0.0, 0.8, 0.2, 0.8]
 
     z_pos = hpge_meta.hades.holder.position - cryostat_meta.position_cavity_from_top
     pv = _place_pv(holder_lv, "holder_pv", cavity_lv, reg, z_in_mm=z_pos)
@@ -180,7 +176,6 @@ def construct(
     detector_lv = make_hpge(
         hpge_meta, name=hpge_meta.name, registry=reg, allow_cylindrical_asymmetry=False
     )
-    detector_lv.pygeom_color_rgba = [0.33, 0.33, 0.33, 1.0]
 
     # an extra offset is needed to account for the different reference point
     # this is the top of the crystal for the holder and wrap, but it's the p+
@@ -212,7 +207,6 @@ def construct(
     )
     # construct the cryostat
     cryo_lv = create.create_cryostat(cryostat_meta)
-    cryo_lv.pygeom_color_rgba = [0.0, 0.2, 0.8, 0.5]
 
     pv = _place_pv(cryo_lv, "cryo_pv", lab_lv, reg)
     profiles["cryo"] = get_profile(cryo_lv.solid) | {"offset": 0}
@@ -299,19 +293,11 @@ def construct(
             x_rot=0 if (position != "lat" or source_type != "th_HS2") else -np.pi / 2,
         )
         reg.addVolumeRecursive(pv)
-        reg.logicalVolumeDict[source_lv.name].pygeom_color_rgba = [
-            0.66,
-            0.44,
-            0.26,
-            0.5,
-        ]
-        reg.logicalVolumeDict["Source"].pygeom_color_rgba = [1, 0, 0, 0.9]
 
         if source_type != "am_HS1":
             s_holder_lv = create.create_source_holder(
                 source_type, holder_dims, source_z=z_pos, meas_type=position
             )
-            s_holder_lv.pygeom_color_rgba = [0, 1, 1, 0.5]
 
             pv = _place_pv(
                 s_holder_lv, "source_holder_pv", lab_lv, reg, z_in_mm=z_pos_holder
@@ -323,7 +309,6 @@ def construct(
     if source_type != "am_HS1":  # for am_HS1 the castle and plate are not present
         plate_meta = dim.get_bottom_plate_metadata()
         plate_lv = create.create_bottom_plate(plate_meta)
-        plate_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom + plate_meta.height / 2.0
         pv = _place_pv(plate_lv, "plate_pv", lab_lv, reg, z_in_mm=z_pos)
@@ -346,11 +331,12 @@ def construct(
 
         castle_dims = dim.get_castle_dimensions(table)
         castle_lv = create.create_lead_castle(table, castle_dims)
-        castle_lv.pygeom_color_rgba = [0.2, 0.3, 0.5, 0.05]
 
         z_pos = cryostat_meta.position_from_bottom - castle_dims.base.height / 2.0
         pv = _place_pv(castle_lv, "castle_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
+
+    colors.set_colors(reg)
 
     if plot_profiles:
         plot.plot_profiles(profiles, title=hpge_name, show=True)
