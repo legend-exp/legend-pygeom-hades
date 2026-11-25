@@ -5,17 +5,19 @@ It is necessary to provide a configuration YAML file.
 This should have a format similar to:
 
 ```yaml
-hpge_name: V13049A # the detector name
-daq_settings: # details about the data taking
-  flashcam:
-    card_interface: efb2
-run: run0001 # the run number
+detector: V13049A # the detector name
 measurement: th_HS2_top_psa # the measurement name
-source_position: # the source position
+daq_settings:
+  flashcam:
+    card_interface: efb1 # selects the table and its lead castle: efb1 or efb2
+source_position: # the source position, no source is built without it
   phi_in_deg: 0.0
   r_in_mm: 0.0
   z_in_mm: 38.0
 ```
+
+The run configurations in `hardware/configuration` of `hades-metadata` have this
+format (with additional fields) and can be used directly.
 
 :::{note}
 

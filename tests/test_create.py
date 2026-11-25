@@ -15,11 +15,11 @@ from pygeomhades.create_volumes import (
 def test_create_cavity():
     cryostat = AttrsDict(
         {
-            "width": 200,
-            "thickness": 1,
-            "height": 200,
-            "position_cavity_from_top": 1,
-            "position_cavity_from_bottom": 1,
+            "width_in_mm": 200,
+            "thickness_in_mm": 1,
+            "height_in_mm": 200,
+            "position_cavity_from_top_in_mm": 1,
+            "position_cavity_from_bottom_in_mm": 1,
         }
     )
 
@@ -99,10 +99,10 @@ def test_create_holder():
 
 
 def test_create_th_plate():
-    source_dims = AttrsDict(
-        {"plates": {"height": 10.0, "width": 50.0, "cavity_width": 5.0}}
+    plates = AttrsDict(
+        {"height_in_mm": 10.0, "width_in_mm": 50.0, "cavity_width_in_mm": 5.0}
     )
 
-    th_plate_lv = create_th_plate(source_dims)
+    th_plate_lv = create_th_plate(plates)
 
     assert isinstance(th_plate_lv, geant4.LogicalVolume)

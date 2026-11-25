@@ -1,3 +1,9 @@
+"""Construction of the HADES geometry components.
+
+All dimensions are in mm and are read from the HADES metadata (``hardware/``
+folder of hades-metadata). Each function returns a logical volume.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -28,6 +34,13 @@ def _tube(
     return geant4.solid.Tubs(name, r_min, r_max, height, 0, 2 * np.pi, registry)
 
 
+def _box(name: str, dims: AttrsDict, registry: geant4.Registry) -> geant4.solid.Box:
+    """Box from the ``width_in_mm``, ``depth_in_mm`` and ``height_in_mm`` fields."""
+    return geant4.solid.Box(
+        name, dims.width_in_mm, dims.depth_in_mm, dims.height_in_mm, registry
+    )
+
+
 def _place(
     lv: geant4.LogicalVolume,
     mother: geant4.LogicalVolume,
@@ -39,47 +52,25 @@ def _place(
 
 
 def create_vacuum_cavity(
-    cryostat_metadata: AttrsDict, registry: geant4.Registry
+    cryostat: AttrsDict, registry: geant4.Registry
 ) -> geant4.LogicalVolume:
-    """Construct the vacuum cavity.
+    """Construct the vacuum cavity of the cryostat.
 
-    Parameters
-    ----------
-    cryostat_metadata
-        The dimensions of the various parts of the cryostat, should have
-        the following format
-
-        .. code-block:: yaml
-
-            cryostat:
-                width: 200
-                thickness: 2
-                height: 200
-                position_cavity_from_top: 10
-                position_cavity_from_bottom: 20,
-                position_from_bottom: 100
-
-    registry
-        The registry to add the geometry to.
-
-    Returns
-    -------
-    The logical volume for the cavity.
+    `cryostat` is the ``cryostat`` block of ``hardware/cryostat/<detector>``.
+    The cavity starts at z = 0.
     """
-    vacuum_cavity_radius = (
-        cryostat_metadata["width"] - 2 * cryostat_metadata["thickness"]
-    ) / 2
-    vacuum_cavity_z = (
-        cryostat_metadata["height"]
-        - cryostat_metadata["position_cavity_from_top"]
-        - cryostat_metadata["position_cavity_from_bottom"]
+    radius = cryostat.width_in_mm / 2 - cryostat.thickness_in_mm
+    height = (
+        cryostat.height_in_mm
+        - cryostat.position_cavity_from_top_in_mm
+        - cryostat.position_cavity_from_bottom_in_mm
     )
     vacuum_cavity = geant4.solid.GenericPolycone(
         "vacuum_cavity",
         0.0,
         2.0 * np.pi,
-        pR=([0.0, vacuum_cavity_radius, vacuum_cavity_radius, 0.0]),
-        pZ=[0.0, 0.0, vacuum_cavity_z, vacuum_cavity_z],
+        pR=[0.0, radius, radius, 0.0],
+        pZ=[0.0, 0.0, height, height],
         lunit="mm",
         aunit="rad",
         registry=registry,
@@ -87,31 +78,47 @@ def create_vacuum_cavity(
     return geant4.LogicalVolume(vacuum_cavity, "G4_Galactic", "cavity_lv", registry)
 
 
+def create_cryostat(cryostat: AttrsDict) -> geant4.LogicalVolume:
+    """Create the cryostat, a closed cylinder with a vacuum cavity.
+
+    `cryostat` is the ``cryostat`` block of ``hardware/cryostat/<detector>``.
+    z = 0 is the cryostat top.
+    """
+    reg = geant4.Registry()
+    r_out = cryostat.width_in_mm / 2
+    r_in = r_out - cryostat.thickness_in_mm
+    start = cryostat.position_cavity_from_top_in_mm
+    end = cryostat.height_in_mm - cryostat.position_cavity_from_bottom_in_mm
+
+    solid = _polycone(
+        "cryostat",
+        [
+            (0, 0, r_out),
+            (start, 0, r_out),
+            (start, r_in, r_out),
+            (end, r_in, r_out),
+            (end, 0, r_out),
+            (cryostat.height_in_mm, 0, r_out),
+        ],
+        reg,
+    )
+    return geant4.LogicalVolume(
+        solid, get_material("en_aw_2011t8", reg), "Cryostat", reg
+    )
+
+
 def create_wrap(wrap_metadata: AttrsDict) -> geant4.LogicalVolume:
-    """Create the detector wrap (HD1000 polyethylene).
+    """Create the detector wrap (HD1000 polyethylene), a cup closed at z = 0.
+
+    `wrap_metadata` is the ``wrap.geometry`` block of
+    ``hardware/cryostat/<detector>``.
 
     .. warning::
 
         The returned logical volume belongs to its own registry,
         it is necessary to call :func:`reg.addVolumeRecursive` on
         the produced PhysicalVolume to get a sane registry.
-
-    Parameters
-    ----------
-    wrap_metadata
-        The dimensions of the wrap,
-        should be of the format:
-
-        .. code-block:: yaml
-
-            outer:
-                height_in_mm: 100
-                radius_in_mm: 100
-            inner:
-                height_in_mm: 99
-                radius_in_mm: 99
     """
-    # cup closed at z = 0
     reg = geant4.Registry()
     r_out = wrap_metadata.outer.radius_in_mm
     r_in = wrap_metadata.inner.radius_in_mm
@@ -129,41 +136,16 @@ def create_wrap(wrap_metadata: AttrsDict) -> geant4.LogicalVolume:
 def create_holder(
     holder_meta: AttrsDict, det_type: str, order: int
 ) -> geant4.LogicalVolume:
-    """Construct the holder geometry
+    """Create the detector holder.
 
     Parameters
     ----------
     holder_meta
-        The metadata describing the holder geometry, should be of the format:
-
-        .. code-block:: yaml
-
-            cylinder:
-                inner:
-                    height_in_mm: 100
-                    radius_in_mm: 100
-                outer:
-                    height_in_mm: 104
-                    radius_in_mm: 104
-            bottom_cyl:
-                inner:
-                    height_in_mm: 100
-                    radius_in_mm: 100
-                outer:
-                    height_in_mm: 104
-                    radius_in_mm: 104
-            rings:
-                position_top_ring_in_mm: 20
-                position_bottom_ring_in_mm: 30
-                radius_in_mm: 150
-                height_in_mm: 10
-            edge:
-                height_in_mm: 1000
-    order
-        The detector batch number.
-
+        The ``holder.geometry`` block of ``hardware/cryostat/<detector>``.
     det_type
-        Detector type.
+        Detector type (``icpc`` or ``bege``).
+    order
+        The detector production batch.
     """
     reg = geant4.Registry()
     cyl = holder_meta.cylinder
@@ -236,93 +218,51 @@ def create_holder(
     )
 
 
-def create_bottom_plate(plate_metadata: AttrsDict) -> geant4.LogicalVolume:
-    """Create the bottom plate.
+def create_bottom_plate(plate: AttrsDict) -> geant4.LogicalVolume:
+    """Create the bottom plate, a box with a cavity centered on its edge at y = +depth/2.
 
-    Parameters
-    ----------
-    plate_metadata
-        Metadata describing the position of the bottom plate.
-        This should have the format:
-
-        .. code-block:: yaml
-
-            width: 100
-            depth: 200
-            height: 300
-            cavity:
-                width: 100
-                depth: 200
-                height: 200
+    `plate` is ``hardware/setup/bottom_plate``.
     """
-    # box with a cavity centered on its edge at y = +depth/2
     reg = geant4.Registry()
-    p, cav = plate_metadata, plate_metadata.cavity
-    plate = geant4.solid.Subtraction(
+    solid = geant4.solid.Subtraction(
         "final_bottom_plate",
-        geant4.solid.Box("bottom_plate", p.width, p.depth, p.height, reg),
-        geant4.solid.Box("cavity_bottom_plate", cav.width, cav.depth, cav.height, reg),
-        [[0, 0, 0], [0, p.depth / 2, 0]],
+        _box("bottom_plate", plate, reg),
+        _box("cavity_bottom_plate", plate.cavity, reg),
+        [[0, 0, 0], [0, plate.depth_in_mm / 2, 0]],
         reg,
     )
     return geant4.LogicalVolume(
-        plate, get_material("aluminium", reg), "Bottom_plate", reg
+        solid, get_material("aluminium", reg), "Bottom_plate", reg
     )
 
 
-def create_lead_castle(
-    table_num: int, castle_dimensions: AttrsDict
-) -> geant4.LogicalVolume:
-    """Create the lead castle.
+def create_lead_castle(table_num: int, dims: AttrsDict) -> geant4.LogicalVolume:
+    """Create the lead castle of table 1 or 2.
 
-    Parameters
-    ----------
-    table_num
-        Which table the measurements were taken on (1 or 2).
-    castle_dimensions
-        The metadata describing the lead castle dimensions. This should
-        have the fields "base", "inner_cavity", "cavity",
-        "top", "front" and "copper_plate".
-
-        Each should have a subdictionary with this format:
-
-        .. code-block:: yaml
-
-            base:
-                height: 100
-                depth: 100
-                width: 100
+    `dims` is ``hardware/setup/lead_castle/table<table_num>``.
     """
-    if table_num not in [1, 2]:
-        msg = f"Table number must be 1 or 2, not {table_num}"
-        raise ValueError(msg)
-
     reg = geant4.Registry()
-    dims = castle_dimensions
-
-    def box(name, d):
-        return geant4.solid.Box(name, d.width, d.depth, d.height, reg)
 
     if table_num == 1:
         # the cavity is the inner cavity plus a box shifted towards +y
         cavity = geant4.solid.Union(
             "total_cavity_1",
-            box("inner_cavity_base_1", dims.inner_cavity),
-            box("cavity_base_1", dims.cavity),
+            _box("inner_cavity_base_1", dims.inner_cavity, reg),
+            _box("cavity_base_1", dims.cavity, reg),
             [
                 [0, 0, 0],
                 [
                     0,
-                    dims.inner_cavity.depth / 2
-                    + (dims.base.depth - dims.inner_cavity.depth) / 4,
-                    (dims.inner_cavity.height - dims.cavity.height) / 2,
+                    dims.inner_cavity.depth_in_mm / 2
+                    + (dims.base.depth_in_mm - dims.inner_cavity.depth_in_mm) / 4,
+                    (dims.inner_cavity.height_in_mm - dims.cavity.height_in_mm) / 2,
                 ],
             ],
             reg,
         )
         castle = geant4.solid.Subtraction(
             "base_cavity_1",
-            box("base_lead_castle_1", dims.base),
+            _box("base_lead_castle_1", dims.base, reg),
             cavity,
             [[0, 0, 0], [0, 0, 0]],
             reg,
@@ -332,20 +272,23 @@ def create_lead_castle(
         castle = geant4.solid.Union(
             "top_base_1",
             castle,
-            box("top_lead_castle_1", dims.top),
-            [[0, 0, 0], [0, 0, -(dims.base.height + dims.top.height) / 2 - 0.01]],
+            _box("top_lead_castle_1", dims.top, reg),
+            [
+                [0, 0, 0],
+                [0, 0, -(dims.base.height_in_mm + dims.top.height_in_mm) / 2 - 0.01],
+            ],
             reg,
         )
         castle = geant4.solid.Union(
             "final_lead_castle_1",
             castle,
-            box("front_1", dims.front),
+            _box("front_1", dims.front, reg),
             [
                 [0, 0, 0],
                 [
                     0,
-                    (dims.base.depth + dims.front.depth) / 2 - 0.01,
-                    (dims.base.height - dims.front.height) / 2,
+                    (dims.base.depth_in_mm + dims.front.depth_in_mm) / 2 - 0.01,
+                    (dims.base.height_in_mm - dims.front.height_in_mm) / 2,
                 ],
             ],
             reg,
@@ -355,21 +298,21 @@ def create_lead_castle(
         )
 
     # table 2: the top block is separated from the base by the copper plate
-    cu_height = dims.copper_plate.height
+    cu_height = dims.copper_plate.height_in_mm
     castle = geant4.solid.Subtraction(
         "base_cavity_2",
-        box("base_lead_castle_2", dims.base),
-        box("inner_cavity_lead_castle_2", dims.inner_cavity),
+        _box("base_lead_castle_2", dims.base, reg),
+        _box("inner_cavity_lead_castle_2", dims.inner_cavity, reg),
         [[0, 0, 0], [0, 0, 0]],
         reg,
     )
     castle = geant4.solid.Union(
         "final_lead_castle_2",
         castle,
-        box("top_lead_castle_2", dims.top),
+        _box("top_lead_castle_2", dims.top, reg),
         [
             [0, 0, 0],
-            [0, 0, -((dims.base.height + dims.top.height) / 2 + cu_height)],
+            [0, 0, -((dims.base.height_in_mm + dims.top.height_in_mm) / 2 + cu_height)],
         ],
         reg,
     )
@@ -379,142 +322,103 @@ def create_lead_castle(
     # FIXME: the copper plate lies in the gap between base and top, i.e.
     # outside of its mother volume
     plate_lv = geant4.LogicalVolume(
-        box("copper_plate", dims.copper_plate),
+        _box("copper_plate", dims.copper_plate, reg),
         get_material("copper", reg),
         "Copper_plate",
         reg,
     )
-    _place(plate_lv, castle_lv, reg, z=-(dims.base.height + cu_height) / 2)
+    _place(plate_lv, castle_lv, reg, z=-(dims.base.height_in_mm + cu_height) / 2)
     return castle_lv
 
 
 def create_source(
-    source_type: str, source_dims: AttrsDict, holder_dims: AttrsDict | None
+    source_type: str, dims: AttrsDict, position: str
 ) -> geant4.LogicalVolume:
-    """Create the geometry of the source.
+    """Create the source with its capsule, collimator or holder.
 
     Parameters
     ----------
     source_type
-        The type of source (am_collimated, am, ba, co or th)
-    source_dims
-        Metadata describing the source geometry.
-        Should be of the following format:
-
-        .. code-block:: yaml
-
-            height: 0.0
-            width: 0.0
-
-            foil:
-                height: 0.0
-                width: 0.0
-
-            al_ring:
-                height: 0.0
-                width_max: 0.0
-                width_min: 0.0
-
-            capsule:
-                width: 0.0
-                depth: 0.0
-                height: 0.0
-
-            collimator:
-                width: 0.0
-                depth: 0.0
-                height: 0.0
-                beam_width: 0.0
-                beam_height: 0.0
-                window: 0.0
-
-            epoxy:
-                height: 0.0
-                width: 0.0
-
-            plates:
-                height: 0.0
-                width: 0.0
-                cavity_width: 0.0
-
-            offset_height: 0.0
-
-    holder_dims
-        Dimensions of the source holder (see :func:`get_source_holder`).
+        The source name, e.g. ``th_HS2``.
+    dims
+        ``hardware/sources/<source_type>``.
+    position
+        The measurement position (``top`` or ``lat``).
     """
     reg = geant4.Registry()
-    d = source_dims
+    d = dims
 
     def lv(solid, material, name):
         return geant4.LogicalVolume(solid, get_material(material, reg), name, reg)
+
+    def source(material):
+        return lv(
+            _tube("source", d.width_in_mm / 2, d.height_in_mm, reg), material, "Source"
+        )
 
     if source_type == "am_HS1":
         # encapsulated source inside a collimator with a cylindrical beam
         # channel above it
         col = d.collimator
-        source = lv(_tube("source", d.width / 2, d.height, reg), "quartz", "Source")
+        cap_height = d.capsule.height_in_mm
+        src = source("quartz")
         capsule = lv(
-            _tube("source_capsule", d.capsule.width / 2, d.capsule.height, reg),
+            _tube("source_capsule", d.capsule.width_in_mm / 2, cap_height, reg),
             "steel",
             "Source_Encapsulated",
         )
-        _place(source, capsule, reg, z=(d.capsule.height - d.height) / 2 - col.window)
+        _place(
+            src, capsule, reg, z=(cap_height - d.height_in_mm) / 2 - col.window_in_mm
+        )
         beam = lv(
-            _tube("collimator_beam", col.beam_width / 2, col.beam_height, reg),
+            _tube(
+                "collimator_beam",
+                col.beam_width_in_mm / 2,
+                col.beam_height_in_mm,
+                reg,
+            ),
             "air",
             "Collimator_Beam",
         )
-        top = lv(
-            geant4.solid.Box("collimator", col.width, col.depth, col.height, reg),
-            "G4_Cu",
-            "Source_Collimated",
-        )
-        _place(beam, top, reg, z=(col.height - col.beam_height) / 2)
+        top = lv(_box("collimator", col, reg), "G4_Cu", "Source_Collimated")
+        _place(beam, top, reg, z=(col.height_in_mm - col.beam_height_in_mm) / 2)
         _place(
             capsule,
             top,
             reg,
-            z=-d.capsule.height / 2 - col.beam_height + col.height / 2,
+            z=-cap_height / 2 - col.beam_height_in_mm + col.height_in_mm / 2,
         )
 
     elif source_type == "am_HS6":
-        source = lv(_tube("source", d.width / 2, d.height, reg), "acrylic", "Source")
+        src = source("acrylic")
         top = lv(
-            geant4.solid.Box(
-                "source_capsule",
-                d.capsule.width,
-                d.capsule.depth,
-                d.capsule.height,
-                reg,
-            ),
-            "acrylic",
-            "Source_Encapsulated",
+            _box("source_capsule", d.capsule, reg), "acrylic", "Source_Encapsulated"
         )
-        _place(source, top, reg)
+        _place(src, top, reg)
 
     elif source_type in ["ba_HS4", "co_HS5"]:
         # source on a foil, surrounded by an aluminium ring
         ring = d.al_ring
-        source = lv(_tube("source", d.width / 2, d.height, reg), "hd1000", "Source")
+        src = source("hd1000")
         foil = lv(
-            _tube("source_foil", ring.width_min / 2, d.foil.height, reg),
+            _tube("source_foil", d.foil.width_in_mm / 2, d.foil.height_in_mm, reg),
             "hd1000",
             "Source_foil",
         )
-        _place(source, foil, reg)
+        _place(src, foil, reg)
         al_ring = lv(
             _tube(
                 "source_Alring",
-                ring.width_max / 2,
-                ring.height,
+                ring.width_max_in_mm / 2,
+                ring.height_in_mm,
                 reg,
-                r_min=ring.width_min / 2,
+                r_min=ring.width_min_in_mm / 2,
             ),
             "aluminium",
             "Source_Alring",
         )
         top = lv(
-            _tube("source_vacuum", ring.width_max / 2, ring.height, reg),
+            _tube("source_vacuum", ring.width_max_in_mm / 2, ring.height_in_mm, reg),
             "vacuum",
             "Source_Encapsulated",
         )
@@ -523,28 +427,29 @@ def create_source(
 
     elif source_type == "th_HS2":
         # encapsulated source with epoxy, in the air cavity of a copper
-        # holder. The copper holder is a cylinder with a narrower bottom.
+        # holder. The copper holder is a cylinder with a wider bottom.
         cu = d.copper
-        cu_all_height = cu.height + cu.bottom_height
-        source = lv(_tube("source", d.width / 2, d.height, reg), "quartz", "Source")
+        cu_all_height = cu.height_in_mm + cu.bottom_height_in_mm
+        cap_height = d.capsule.height_in_mm
+        src = source("quartz")
         epoxy = lv(
-            _tube("source_epoxy", d.epoxy.width / 2, d.epoxy.height, reg),
+            _tube("source_epoxy", d.epoxy.width_in_mm / 2, d.epoxy.height_in_mm, reg),
             "epoxy",
             "Source_Epoxy",
         )
         capsule = lv(
-            _tube("source_capsule", d.capsule.width / 2, d.capsule.height, reg),
+            _tube("source_capsule", d.capsule.width_in_mm / 2, cap_height, reg),
             "steel",
             "Source_Encapsulated",
         )
-        _place(source, capsule, reg)
-        _place(epoxy, capsule, reg, z=(d.capsule.height - d.epoxy.height) / 2)
+        _place(src, capsule, reg)
+        _place(epoxy, capsule, reg, z=(cap_height - d.epoxy.height_in_mm) / 2)
         cavity = lv(
             _polycone(
                 "CuSource_holder_cavity",
                 [
-                    (0, 0, cu.cavity_width / 2),
-                    (cu_all_height, 0, cu.cavity_width / 2),
+                    (0, 0, cu.cavity_width_in_mm / 2),
+                    (cu_all_height, 0, cu.cavity_width_in_mm / 2),
                 ],
                 reg,
             ),
@@ -555,16 +460,16 @@ def create_source(
             capsule,
             cavity,
             reg,
-            z=cu_all_height - d.capsule.height / 2 - d.offset_height,
+            z=cu_all_height - cap_height / 2 - d.offset_height_in_mm[position],
         )
         top = lv(
             _polycone(
                 "CuSource_holder",
                 [
-                    (0, 0, cu.width / 2),
-                    (cu.height, 0, cu.width / 2),
-                    (cu.height, 0, cu.bottom_width / 2),
-                    (cu_all_height, 0, cu.bottom_width / 2),
+                    (0, 0, cu.width_in_mm / 2),
+                    (cu.height_in_mm, 0, cu.width_in_mm / 2),
+                    (cu.height_in_mm, 0, cu.bottom_width_in_mm / 2),
+                    (cu_all_height, 0, cu.bottom_width_in_mm / 2),
                 ],
                 reg,
             ),
@@ -574,170 +479,119 @@ def create_source(
         _place(cavity, top, reg)
 
     else:
-        msg = f"source type of {source_type} is not defined."
-        raise RuntimeError(msg)
+        msg = f"source type {source_type} is not implemented"
+        raise NotImplementedError(msg)
 
     return top
 
 
-def create_th_plate(source_dims: AttrsDict) -> geant4.LogicalVolume:
-    """Construct the plate for the Th source
+def create_th_plate(plates: AttrsDict) -> geant4.LogicalVolume:
+    """Create the Pb plates (an annulus) of the Th source.
 
-    Parameters
-    ----------
-    source_dims
-        See :func:`create_source` for more information.
+    `plates` is the ``plates`` block of ``hardware/sources/th_HS2``.
     """
     reg = geant4.Registry()
-    plates = source_dims.plates
     tube = _tube(
         "source_plates",
-        plates.width / 2,
-        plates.height,
+        plates.width_in_mm / 2,
+        plates.height_in_mm,
         reg,
-        r_min=plates.cavity_width / 2,
+        r_min=plates.cavity_width_in_mm / 2,
     )
     return geant4.LogicalVolume(tube, get_material("G4_Pb", reg), "Source_Plates", reg)
 
 
-def create_source_holder(
-    source_type: str, holder_dims: AttrsDict, source_z: float, meas_type: str = "lat"
-) -> geant4.LogicalVolume:
-    """Get the source holder geometry.
+def create_source_holder(holder: AttrsDict, source_z: float) -> geant4.LogicalVolume:
+    """Create the acrylic source holder.
+
+    The shape follows the metadata in ``hardware/source_holders/``: a ring around
+    the cryostat with a radial hole (lateral holder, has ``cavity_width_in_mm``),
+    or a cap on the cryostat top (z = 0) with a round or rectangular (has
+    ``top_plate_depth_in_mm``) pocket for the source.
 
     Parameters
     ----------
-    source_type
-        The type of source (am_collimated, am, ba, co or th)
-    holder_dims
-        The dimensions of the source holder, should be of the format:
-
-        .. code-block:: yaml
-
-            source:
-                top_plate_height: 10.0
-                top_plate_width: 10.0
-                top_height: 2.0
-                top_inner_width: 2.0
-                top_bottom_height: 2.0
-                bottom_inner_width: 2.0
-            outer_width: 100.0
-            inner_width: 10.0
-
-
-    meas_type
-        The measurement type (for th only) either lat or top.
+    holder
+        The source holder dimensions.
     source_z
-        The z position of the source from the cryostat bottom.
+        The z position of the source from the cryostat top, in mm.
     """
     reg = geant4.Registry()
-    h = holder_dims
-    r_out = h.outer_width / 2
-    r_in = h.inner_width / 2
+    h = holder
+    r_out = h.outer_width_in_mm / 2
+    r_in = h.inner_width_in_mm / 2
 
-    if source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2"] and meas_type == "lat":
-        # tube around the cryostat, with a radial hole for the source
-        holder = geant4.solid.Subtraction(
+    if "cavity_width_in_mm" in h:
+        solid = geant4.solid.Subtraction(
             "source_holder",
-            _tube("cylinder_source_holder", r_out, h.height, reg, r_min=r_in),
-            _tube("cavity_source_holder", h.cavity_width / 2, h.cavity_height, reg),
+            _tube("cylinder_source_holder", r_out, h.height_in_mm, reg, r_min=r_in),
+            _tube(
+                "cavity_source_holder",
+                h.cavity_width_in_mm / 2,
+                h.cavity_height_in_mm,
+                reg,
+            ),
             [[np.pi / 2, 0, 0], [0, (r_in + r_out) / 2, 0]],
             reg,
         )
+        return geant4.LogicalVolume(
+            solid, get_material("acrylic_source_holder", reg), "Source_Holder", reg
+        )
 
-    elif source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2", "am_HS6"]:
-        # cap on top of the cryostat (z = 0), with a pocket for the source
-        # in the top plate, extending down to the source position
-        s = h.source
-        z_cryo = source_z + s.top_plate_height / 2
-        z_end = source_z + s.top_bottom_height
-        sides = [
-            (s.top_height, r_in, r_out),
-            (z_cryo, r_in, r_out),
-            (z_cryo, s.bottom_inner_width / 2, r_out),
-            (z_end, s.bottom_inner_width / 2, r_out),
-        ]
+    # the pocket in the top plate extends down to the source position
+    z_cryo = source_z + h.top_plate_height_in_mm / 2
+    z_end = source_z + h.top_bottom_height_in_mm
+    sides = [
+        (h.top_height_in_mm, r_in, r_out),
+        (z_cryo, r_in, r_out),
+        (z_cryo, h.bottom_inner_width_in_mm / 2, r_out),
+        (z_end, h.bottom_inner_width_in_mm / 2, r_out),
+    ]
 
-        if source_type != "am_HS6":
-            holder = _polycone(
-                "source_holder",
-                [
-                    (0, s.top_plate_width / 2, r_out),
-                    (s.top_plate_height, s.top_plate_width / 2, r_out),
-                    (s.top_plate_height, s.top_inner_width / 2, r_out),
-                    (s.top_height, s.top_inner_width / 2, r_out),
-                    *sides,
-                ],
-                reg,
-            )
-        else:
-            # the pockets for the Am HS6 source are rectangular
-            holder = geant4.solid.Subtraction(
-                "source_holder_endcap",
-                _polycone(
-                    "source_holder_cylinder",
-                    [(0, 0, r_out), (s.top_height, 0, r_out), *sides],
-                    reg,
-                ),
-                geant4.solid.Box(
-                    "rectangular_plate",
-                    s.top_plate_width,
-                    s.top_plate_depth,
-                    s.top_plate_height,
-                    reg,
-                ),
-                [[0, 0, 0], [0, 0, s.top_plate_height / 2]],
-                reg,
-            )
-            holder = geant4.solid.Subtraction(
-                "source_holder_sub",
-                holder,
-                geant4.solid.Box(
-                    "source_holder_top_inner",
-                    s.top_inner_width,
-                    s.top_inner_depth,
-                    s.top_height,
-                    reg,
-                ),
-                [[0, 0, 0], [0, 0, s.top_height / 2 + s.top_plate_height]],
-                reg,
-            )
+    if "top_plate_depth_in_mm" not in h:
+        solid = _polycone(
+            "source_holder",
+            [
+                (0, h.top_plate_width_in_mm / 2, r_out),
+                (h.top_plate_height_in_mm, h.top_plate_width_in_mm / 2, r_out),
+                (h.top_plate_height_in_mm, h.top_inner_width_in_mm / 2, r_out),
+                (h.top_height_in_mm, h.top_inner_width_in_mm / 2, r_out),
+                *sides,
+            ],
+            reg,
+        )
     else:
-        msg = f"source type {source_type} not implemented."
-        raise RuntimeError(msg)
+        solid = geant4.solid.Subtraction(
+            "source_holder_endcap",
+            _polycone(
+                "source_holder_cylinder",
+                [(0, 0, r_out), (h.top_height_in_mm, 0, r_out), *sides],
+                reg,
+            ),
+            geant4.solid.Box(
+                "rectangular_plate",
+                h.top_plate_width_in_mm,
+                h.top_plate_depth_in_mm,
+                h.top_plate_height_in_mm,
+                reg,
+            ),
+            [[0, 0, 0], [0, 0, h.top_plate_height_in_mm / 2]],
+            reg,
+        )
+        solid = geant4.solid.Subtraction(
+            "source_holder_sub",
+            solid,
+            geant4.solid.Box(
+                "source_holder_top_inner",
+                h.top_inner_width_in_mm,
+                h.top_inner_depth_in_mm,
+                h.top_height_in_mm,
+                reg,
+            ),
+            [[0, 0, 0], [0, 0, h.top_height_in_mm / 2 + h.top_plate_height_in_mm]],
+            reg,
+        )
 
     return geant4.LogicalVolume(
-        holder, get_material("acrylic_source_holder", reg), "Source_Holder", reg
-    )
-
-
-def create_cryostat(cryostat_meta: AttrsDict) -> geant4.LogicalVolume:
-    """Create the cryostat logical volume.
-
-    Parameters
-    ----------
-    cryostat_meta
-        Metadata describing the cryostat geometry (see :func:`create_vacuum_cavity`).
-    """
-    # closed cylinder with a vacuum cavity. z = 0 is the cryostat top.
-    reg = geant4.Registry()
-    r_out = cryostat_meta.width / 2
-    r_in = r_out - cryostat_meta.thickness
-    start = cryostat_meta.position_cavity_from_top
-    end = cryostat_meta.height - cryostat_meta.position_cavity_from_bottom
-
-    cryostat = _polycone(
-        "cryostat",
-        [
-            (0, 0, r_out),
-            (start, 0, r_out),
-            (start, r_in, r_out),
-            (end, r_in, r_out),
-            (end, 0, r_out),
-            (cryostat_meta.height, 0, r_out),
-        ],
-        reg,
-    )
-    return geant4.LogicalVolume(
-        cryostat, get_material("en_aw_2011t8", reg), "Cryostat", reg
+        solid, get_material("acrylic_source_holder", reg), "Source_Holder", reg
     )

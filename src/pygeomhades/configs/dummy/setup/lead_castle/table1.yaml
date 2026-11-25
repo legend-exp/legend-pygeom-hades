@@ -1,0 +1,20 @@
+base:
+  width_in_mm: 480
+  depth_in_mm: 450
+  height_in_mm: 500
+inner_cavity:
+  width_in_mm: 300
+  depth_in_mm: 250
+  height_in_mm: 500
+cavity:
+  width_in_mm: 120
+  depth_in_mm: 100
+  height_in_mm: 400
+top:
+  width_in_mm: 300
+  depth_in_mm: 300
+  height_in_mm: 90
+front:
+  width_in_mm: 160
+  depth_in_mm: 100
+  height_in_mm: 400

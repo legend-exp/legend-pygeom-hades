@@ -83,6 +83,26 @@ def test_import():
             )
             for meas in ["am_HS1_lat_dlt", "th_HS2_lat_psa"]
         ],
+        *[
+            (
+                AttrsDict(
+                    {
+                        "detector": "V02160A",
+                        "run": run,
+                        "measurement": "th_HS2_lat_psa",
+                        "daq_settings": {"flashcam": {"card_interface": card}},
+                        "source_position": AttrsDict(
+                            {"phi_in_deg": 0.0, "r_in_mm": 30, "z_in_mm": 60.0}
+                        ),
+                    }
+                ),
+                table2,
+            )
+            for run, card, table2 in [
+                ("run0001", "efb1", False),
+                ("run0003", "efb2", True),
+            ]
+        ],
     ],
     ids=[
         "bege_efb1_am_HS6_top_dlt",
@@ -94,6 +114,8 @@ def test_import():
         "source_am_HS6_top_dlt",
         "lateral_am_HS1_lat_dlt",
         "lateral_th_HS2_lat_psa",
+        "table1_run",
+        "table2_run",
     ],
 )
 def test_construct(config: AttrsDict, assert_copper_plate: bool):

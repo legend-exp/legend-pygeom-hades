@@ -1,0 +1,16 @@
+base:
+  width_in_mm: 350
+  depth_in_mm: 350
+  height_in_mm: 400
+inner_cavity:
+  width_in_mm: 250
+  depth_in_mm: 250
+  height_in_mm: 400
+top:
+  width_in_mm: 200
+  depth_in_mm: 200
+  height_in_mm: 50
+copper_plate:
+  width_in_mm: 350
+  depth_in_mm: 350
+  height_in_mm: 10
