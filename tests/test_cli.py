@@ -62,7 +62,9 @@ def test_options(tmp_path, monkeypatch):
     assert calls == [100, "overlaps"]
 
 
-@pytest.mark.parametrize("argv", [[], ["--print-volumes", "nonsense"]])
+@pytest.mark.parametrize(
+    "argv", [[], ["--print-volumes", "nonsense"], ["--config", CONFIG]]
+)
 def test_bad_arguments(argv):
     with pytest.raises(SystemExit):
         _parse_cli_args(argv)
