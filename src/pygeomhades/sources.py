@@ -424,7 +424,7 @@ def source_xyz(
         log.warning(msg)
 
     phi = phi * math.pi / 180.0
-    x = round(r * math.cos(phi), 2)
-    y = round(-r * math.sin(phi), 2)
+    x = r * math.cos(phi)
+    y = -r * math.sin(phi)
 
     return x, y, source_position.z_in_mm

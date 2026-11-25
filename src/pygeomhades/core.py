@@ -97,7 +97,7 @@ def construct(
     )
     cryostat = hpge.hades.cryostat
     # the vacuum cavity starts below the top wall of the cryostat
-    top_wall = cryostat.position_cavity_from_top_in_mm
+    top_wall = cryostat.top_thickness_in_mm
 
     reg = geant4.Registry()
 
@@ -129,9 +129,7 @@ def construct(
     reg.addVolumeRecursive(pv)
 
     # construct the holder
-    holder_lv = make_holder(
-        hpge.hades.holder.geometry, hpge.type, hpge.production.order
-    )
+    holder_lv = make_holder(hpge.hades.holder.geometry, hpge.type)
 
     z = hpge.hades.holder.position_in_mm - top_wall
     pv = place(holder_lv, cavity_lv, reg, name="holder_pv", z=z)
