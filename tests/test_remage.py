@@ -2,12 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [
-    pytest.mark.needs_remage,
-    pytest.mark.filterwarnings(
-        "ignore:lgdo.lh5 has moved to its own package:DeprecationWarning"
-    ),
-]
+pytestmark = pytest.mark.needs_remage
 
 
 def test_overlaps(gdml_file):
