@@ -9,7 +9,6 @@ import pygeomtools
 from dbetto import AttrsDict
 from git import GitCommandError
 from legendmeta import HadesMetadata, LegendMetadata
-from matplotlib import pyplot as plt
 from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
@@ -353,10 +352,8 @@ def construct(
         pv = _place_pv(castle_lv, "castle_pv", lab_lv, reg, z_in_mm=z_pos)
         reg.addVolumeRecursive(pv)
 
-    # plot the profiles
     if plot_profiles:
-        _, _ = plot.plot_profiles(profiles, title=f"{hpge_name}")
-        plt.show()
+        plot.plot_profiles(profiles, title=hpge_name, show=True)
 
     return reg
 
