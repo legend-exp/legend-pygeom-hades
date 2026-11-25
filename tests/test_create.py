@@ -6,7 +6,7 @@ from pyg4ometry import geant4
 
 from pygeomhades.create_volumes import (
     create_holder,
-    create_th_plate,
+    create_th_plates,
     create_vacuum_cavity,
     create_wrap,
 )
@@ -29,7 +29,7 @@ def test_create_cavity():
 
 
 def test_create_wrap():
-    wrap_metadata = AttrsDict(
+    wrap = AttrsDict(
         {
             "outer": {
                 "height_in_mm": 100,
@@ -42,7 +42,7 @@ def test_create_wrap():
         }
     )
 
-    wrap_lv = create_wrap(wrap_metadata)
+    wrap_lv = create_wrap(wrap)
 
     assert wrap_lv is not None
     assert isinstance(wrap_lv, geant4.LogicalVolume)
@@ -98,11 +98,11 @@ def test_create_holder():
     assert isinstance(lv, geant4.LogicalVolume)
 
 
-def test_create_th_plate():
+def test_create_th_plates():
     plates = AttrsDict(
         {"height_in_mm": 10.0, "width_in_mm": 50.0, "cavity_width_in_mm": 5.0}
     )
 
-    th_plate_lv = create_th_plate(plates)
+    th_plates_lv = create_th_plates(plates)
 
-    assert isinstance(th_plate_lv, geant4.LogicalVolume)
+    assert isinstance(th_plates_lv, geant4.LogicalVolume)

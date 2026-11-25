@@ -10,12 +10,12 @@ from pygeomhades.metadata import PublicLegendMetadataProxy
 def test_merge_config():
     meta = PublicLegendMetadataProxy()
 
-    hpge_meta = utils.merge_configs(
+    hpge = utils.merge_configs(
         meta.hardware.detectors.germanium.diodes["V07302A"], {"dimensions": 1}
     )
 
-    assert hpge_meta.hades.dimensions == 1
-    assert hpge_meta.production.enrichment.val is not None
+    assert hpge.hades.dimensions == 1
+    assert hpge.production.enrichment.val is not None
 
 
 def test_parse_measurement_basic():
