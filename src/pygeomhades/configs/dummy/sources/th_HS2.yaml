@@ -16,12 +16,6 @@ copper:
   cavity_width_in_mm: 3.0
   bottom_width_in_mm: 50.0
   bottom_height_in_mm: 3.0
-collimator:
-  width_in_mm: 30.0
-  depth_in_mm: 30.0
-  height_in_mm: 30.0
-  beam_width_in_mm: 1.0
-  beam_height_in_mm: 15.0
 offset_height_in_mm:
   top: 0.0
   lat: 18.0
