@@ -50,7 +50,13 @@ def test_import():
                         "detector": "V07302A",
                         "campaign": "c1",
                         "measurement": meas,
-                        "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                        "daq_settings": {
+                            "flashcam": {
+                                "card_interface": "efb3"
+                                if meas.startswith("am_HS1")
+                                else "efb2"
+                            }
+                        },
                         "source_position": AttrsDict(
                             {"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0}
                         ),
@@ -73,7 +79,13 @@ def test_import():
                         "detector": "V07302A",
                         "campaign": "c1",
                         "measurement": meas,
-                        "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+                        "daq_settings": {
+                            "flashcam": {
+                                "card_interface": "efb3"
+                                if meas.startswith("am_HS1")
+                                else "efb2"
+                            }
+                        },
                         "source_position": AttrsDict(
                             {"phi_in_deg": 0.0, "r_in_mm": 30, "z_in_mm": 60.0}
                         ),
@@ -154,3 +166,23 @@ def test_construct_am_hs6_top_dlt(det: str):
     )
     assert isinstance(reg, geant4.Registry)
     pygeomtools.geometry.check_registry_sanity(reg, reg)
+
+
+@pytest.mark.parametrize(
+    ("detector", "card", "castle"),
+    [
+        ("V07302A", "efb1", True),  # am_HS1 on a static table (as in 2021)
+        ("V07302A", "efb3", False),  # scanning table
+        ("V02160B", "efb1", False),  # listed in hardware/setup/table_exceptions
+    ],
+)
+def test_table_from_card(detector: str, card: str, castle: bool):
+    config = AttrsDict(
+        {
+            "detector": detector,
+            "measurement": "am_HS1_top_ssh",
+            "daq_settings": {"flashcam": {"card_interface": card}},
+        }
+    )
+    reg = construct(config, public_geometry=public_geom)
+    assert ("castle_pv" in reg.physicalVolumeDict) == castle

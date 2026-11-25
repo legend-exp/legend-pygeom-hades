@@ -9,7 +9,7 @@ detector: V13049A # the detector name
 measurement: th_HS2_top_psa # the measurement name
 daq_settings:
   flashcam:
-    card_interface: efb1 # selects the table and its lead castle: efb1 or efb2
+    card_interface: efb1 # selects the table: efb1, efb2 (static) or efb3 (scanning)
 source_position: # the source position, no source is built without it
   phi_in_deg: 0.0
   r_in_mm: 0.0

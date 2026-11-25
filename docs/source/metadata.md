@@ -25,9 +25,11 @@ diameter.
   [this tool](https://github.com/legend-exp/legend-g4simple-simulation/blob/master/tools/createICPCFiles.py).
 - `setup/bottom_plate`: the aluminium plate between cryostat and lead castle.
 - `setup/lead_castle/table1`, `setup/lead_castle/table2`: the lead castles of
-  the two measurement tables. The table of a run is given by its FlashCam card
-  interface (`daq_settings.flashcam.card_interface`): `efb1` for table 1, `efb2`
-  for table 2.
+  the two static measurement tables. The table of a run is given by its FlashCam
+  card interface (`daq_settings.flashcam.card_interface`): `efb1` for table 1,
+  `efb2` for table 2, `efb3` for the scanning table, which has no lead castle.
+- `setup/table_exceptions`: runs whose table is not the one given by their card
+  interface.
 - `sources/<source>`: the radioactive sources (e.g. `th_HS2`) with their
   capsules and collimators. `source_holder` names the source holder used in each
   measurement position (`top` or `lat`).
