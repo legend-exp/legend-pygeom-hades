@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
@@ -41,7 +42,7 @@ def test_create_wrap():
         }
     )
 
-    wrap_lv = create_wrap(wrap_metadata, from_gdml=True)
+    wrap_lv = create_wrap(wrap_metadata)
 
     assert wrap_lv is not None
     assert isinstance(wrap_lv, geant4.LogicalVolume)
@@ -83,14 +84,17 @@ def test_create_holder():
     )
 
     # test with bege
-    lv = create_holder(holder, "bege", order=0, from_gdml=True)
+    lv = create_holder(holder, "bege", order=0)
     assert isinstance(lv, geant4.LogicalVolume)
 
-    lv = create_holder(holder, "icpc", order=0, from_gdml=True)
+    lv = create_holder(holder, "icpc", order=0)
     assert isinstance(lv, geant4.LogicalVolume)
+
+    with pytest.raises(NotImplementedError):
+        create_holder(holder, "coax", order=0)
 
     holder.pop("rings")  # remove rings for batch 6
-    lv = create_holder(holder, "icpc", order=6, from_gdml=True)
+    lv = create_holder(holder, "icpc", order=6)
     assert isinstance(lv, geant4.LogicalVolume)
 
 
@@ -99,6 +103,6 @@ def test_create_th_plate():
         {"plates": {"height": 10.0, "width": 50.0, "cavity_width": 5.0}}
     )
 
-    th_plate_lv = create_th_plate(source_dims, from_gdml=True)
+    th_plate_lv = create_th_plate(source_dims)
 
     assert isinstance(th_plate_lv, geant4.LogicalVolume)

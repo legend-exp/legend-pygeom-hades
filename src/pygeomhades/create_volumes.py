@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from importlib import resources
-
 import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
 from .materials import get_material
-from .utils import read_gdml_with_replacements
 
 
 def _polycone(
@@ -90,10 +87,8 @@ def create_vacuum_cavity(
     return geant4.LogicalVolume(vacuum_cavity, "G4_Galactic", "cavity_lv", registry)
 
 
-def create_wrap(
-    wrap_metadata: AttrsDict, from_gdml: bool = True
-) -> geant4.LogicalVolume:
-    """Create the mylar wrap.
+def create_wrap(wrap_metadata: AttrsDict) -> geant4.LogicalVolume:
+    """Create the detector wrap (HD1000 polyethylene).
 
     .. warning::
 
@@ -104,7 +99,7 @@ def create_wrap(
     Parameters
     ----------
     wrap_metadata
-        The information on the dimensions of the mylar wrap,
+        The dimensions of the wrap,
         should be of the format:
 
         .. code-block:: yaml
@@ -115,24 +110,7 @@ def create_wrap(
             inner:
                 height_in_mm: 99
                 radius_in_mm: 99
-
-    from_gdml
-        whether to read the geometry from GDML or construct it directly.
     """
-    if from_gdml:
-        dummy_gdml_path = (
-            resources.files("pygeomhades") / "models" / "dummy" / "wrap_dummy.gdml"
-        )
-
-        replacements = {
-            "wrap_outer_height_in_mm": wrap_metadata.outer.height_in_mm,
-            "wrap_outer_radius_in_mm": wrap_metadata.outer.radius_in_mm,
-            "wrap_inner_radius_in_mm": wrap_metadata.inner.radius_in_mm,
-            "wrap_top_thickness_in_mm": wrap_metadata.outer.height_in_mm
-            - wrap_metadata.inner.height_in_mm,
-        }
-        return read_gdml_with_replacements(dummy_gdml_path, replacements)
-
     # cup closed at z = 0
     reg = geant4.Registry()
     r_out = wrap_metadata.outer.radius_in_mm
@@ -149,7 +127,7 @@ def create_wrap(
 
 
 def create_holder(
-    holder_meta: AttrsDict, det_type: str, order: int, from_gdml: bool = True
+    holder_meta: AttrsDict, det_type: str, order: int
 ) -> geant4.LogicalVolume:
     """Construct the holder geometry
 
@@ -186,151 +164,79 @@ def create_holder(
 
     det_type
         Detector type.
-    from_gdml
-        Whether to construct from a GDML file
     """
-    if not from_gdml:
-        reg = geant4.Registry()
-        cyl = holder_meta.cylinder
-        r_in = cyl.inner.radius_in_mm
-        r_out = cyl.outer.radius_in_mm
-        h_in = cyl.inner.height_in_mm
-        h_out = cyl.outer.height_in_mm
-
-        if det_type == "icpc":
-            # cylinder open at z = 0, with an annular bottom continued by a
-            # smaller closed cylinder (the "bottom cylinder")
-            bot = holder_meta.bottom_cyl
-            b_in = bot.inner.radius_in_mm
-            b_out = bot.outer.radius_in_mm
-            bottom_planes = [
-                (h_in, r_in, r_out),
-                (h_in, b_in, r_out),
-                (h_out, b_in, r_out),
-                (h_out, b_in, b_out),
-                (h_in + bot.inner.height_in_mm, b_in, b_out),
-                (h_in + bot.inner.height_in_mm, 0, b_out),
-                (h_out + bot.outer.height_in_mm, 0, b_out),
-            ]
-
-            if order == 6:
-                # batch 6 holders have no rings
-                planes = [(0, r_in, r_out), *bottom_planes]
-            else:
-                # a lip at z = 0 and two rings, all with the maximum radius
-                rings = holder_meta.rings
-                r_max = rings.radius_in_mm
-                edge = holder_meta.edge.height_in_mm
-                planes = [(0, r_in, r_max), (edge, r_in, r_max), (edge, r_in, r_out)]
-                for start in (
-                    rings.position_top_ring_in_mm,
-                    rings.position_bottom_ring_in_mm,
-                ):
-                    end = start + rings.height_in_mm
-                    planes += [
-                        (start, r_in, r_out),
-                        (start, r_in, r_max),
-                        (end, r_in, r_max),
-                        (end, r_in, r_out),
-                    ]
-                planes += bottom_planes
-
-        elif det_type == "bege":
-            # cup open at z = 0, closed at the top, with one ring
-            rings = holder_meta.rings
-            r_max = rings.radius_in_mm
-            start = rings.position_top_ring_in_mm
-            end = start + rings.height_in_mm
-            planes = [
-                (0, r_in, r_out),
-                (start, r_in, r_out),
-                (start, r_in, r_max),
-                (end, r_in, r_max),
-                (end, r_in, r_out),
-                (h_in, r_in, r_out),
-                (h_in, 0, r_out),
-                (h_out, 0, r_out),
-            ]
-        else:
-            msg = "cannot construct geometry for coax or ppc"
-            raise NotImplementedError(msg)
-
-        holder = _polycone("holder", planes, reg)
-        return geant4.LogicalVolume(
-            holder, get_material("en_aw_2011t8", reg), "Holder", reg
-        )
+    reg = geant4.Registry()
+    cyl = holder_meta.cylinder
+    r_in = cyl.inner.radius_in_mm
+    r_out = cyl.outer.radius_in_mm
+    h_in = cyl.inner.height_in_mm
+    h_out = cyl.outer.height_in_mm
 
     if det_type == "icpc":
-        # different gdml for batch 6 due to no rings
-        name = (
-            "holder_icpc_batch_6_dummy.gdml" if order == 6 else "holder_icpc_dummy.gdml"
-        )
-        dummy_gdml_path = resources.files("pygeomhades") / "models" / "dummy" / name
+        # cylinder open at z = 0, with an annular bottom continued by a
+        # smaller closed cylinder (the "bottom cylinder")
+        bot = holder_meta.bottom_cyl
+        b_in = bot.inner.radius_in_mm
+        b_out = bot.outer.radius_in_mm
+        bottom_planes = [
+            (h_in, r_in, r_out),
+            (h_in, b_in, r_out),
+            (h_out, b_in, r_out),
+            (h_out, b_in, b_out),
+            (h_in + bot.inner.height_in_mm, b_in, b_out),
+            (h_in + bot.inner.height_in_mm, 0, b_out),
+            (h_out + bot.outer.height_in_mm, 0, b_out),
+        ]
 
-        cylinder = holder_meta["cylinder"]
-        bottom_cylinder = holder_meta["bottom_cyl"]
-
-        replacements = {
-            "outer_height_in_mm": cylinder.outer.height_in_mm,
-            "inner_height_in_mm": cylinder.inner.height_in_mm,
-            "outer_radius_in_mm": cylinder.outer.radius_in_mm,
-            "inner_radius_in_mm": cylinder.inner.radius_in_mm,
-            "outer_bottom_cyl_radius_in_mm": bottom_cylinder.outer.radius_in_mm,
-            "inner_bottom_cyl_radius_in_mm": bottom_cylinder.inner.radius_in_mm,
-            "end_bottom_cyl_outer_in_mm": cylinder.outer.height_in_mm
-            + bottom_cylinder.outer.height_in_mm,
-            "end_bottom_cyl_inner_in_mm": cylinder.inner.height_in_mm
-            + bottom_cylinder.inner.height_in_mm,
-        }
-
-        # rings are only important for batches other than 6
-        if order != 6:
-            rings = holder_meta["rings"]
-
-            replacements |= {
-                "edge_height_in_mm": holder_meta.edge.height_in_mm,
-                "max_radius_in_mm": rings.radius_in_mm,
-                "pos_top_ring_in_mm": rings.position_top_ring_in_mm,
-                "pos_bottom_ring_in_mm": rings.position_bottom_ring_in_mm,
-                "end_top_ring_in_mm": rings.position_top_ring_in_mm
-                + rings.height_in_mm,
-                "end_bottom_ring_in_mm": rings.position_bottom_ring_in_mm
-                + rings.height_in_mm,
-            }
+        if order == 6:
+            # batch 6 holders have no rings
+            planes = [(0, r_in, r_out), *bottom_planes]
         else:
-            replacements["max_radius_in_mm"] = cylinder.outer.radius_in_mm
+            # a lip at z = 0 and two rings, all with the maximum radius
+            rings = holder_meta.rings
+            r_max = rings.radius_in_mm
+            edge = holder_meta.edge.height_in_mm
+            planes = [(0, r_in, r_max), (edge, r_in, r_max), (edge, r_in, r_out)]
+            for start in (
+                rings.position_top_ring_in_mm,
+                rings.position_bottom_ring_in_mm,
+            ):
+                end = start + rings.height_in_mm
+                planes += [
+                    (start, r_in, r_out),
+                    (start, r_in, r_max),
+                    (end, r_in, r_max),
+                    (end, r_in, r_out),
+                ]
+            planes += bottom_planes
 
     elif det_type == "bege":
-        dummy_gdml_path = (
-            resources.files("pygeomhades")
-            / "models"
-            / "dummy"
-            / "holder_bege_dummy.gdml"
-        )
-
-        rings = holder_meta["rings"]
-        cylinder = holder_meta["cylinder"]
-        bottom_cylinder = holder_meta["bottom_cyl"]
-
-        replacements = {
-            "max_radius_in_mm": rings.radius_in_mm,
-            "outer_height_in_mm": cylinder.outer.height_in_mm,
-            "inner_height_in_mm": cylinder.inner.height_in_mm,
-            "outer_radius_in_mm": cylinder.outer.radius_in_mm,
-            "inner_radius_in_mm": cylinder.inner.radius_in_mm,
-            "position_top_ring_in_mm": rings.position_top_ring_in_mm,
-            "end_top_ring_in_mm": rings.height_in_mm + rings.position_top_ring_in_mm,
-        }
+        # cup open at z = 0, closed at the top, with one ring
+        rings = holder_meta.rings
+        r_max = rings.radius_in_mm
+        start = rings.position_top_ring_in_mm
+        end = start + rings.height_in_mm
+        planes = [
+            (0, r_in, r_out),
+            (start, r_in, r_out),
+            (start, r_in, r_max),
+            (end, r_in, r_max),
+            (end, r_in, r_out),
+            (h_in, r_in, r_out),
+            (h_in, 0, r_out),
+            (h_out, 0, r_out),
+        ]
     else:
         msg = "cannot construct geometry for coax or ppc"
         raise NotImplementedError(msg)
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    holder = _polycone("holder", planes, reg)
+    return geant4.LogicalVolume(
+        holder, get_material("en_aw_2011t8", reg), "Holder", reg
+    )
 
 
-def create_bottom_plate(
-    plate_metadata: AttrsDict, from_gdml: bool = True
-) -> geant4.LogicalVolume:
+def create_bottom_plate(plate_metadata: AttrsDict) -> geant4.LogicalVolume:
     """Create the bottom plate.
 
     Parameters
@@ -348,43 +254,24 @@ def create_bottom_plate(
                 width: 100
                 depth: 200
                 height: 200
-    from_gdml
-        Whether to construct from a GDML file
     """
-    if not from_gdml:
-        # box with a cavity centered on its edge at y = +depth/2
-        reg = geant4.Registry()
-        p, cav = plate_metadata, plate_metadata.cavity
-        plate = geant4.solid.Subtraction(
-            "final_bottom_plate",
-            geant4.solid.Box("bottom_plate", p.width, p.depth, p.height, reg),
-            geant4.solid.Box(
-                "cavity_bottom_plate", cav.width, cav.depth, cav.height, reg
-            ),
-            [[0, 0, 0], [0, p.depth / 2, 0]],
-            reg,
-        )
-        return geant4.LogicalVolume(
-            plate, get_material("aluminium", reg), "Bottom_plate", reg
-        )
-
-    dummy_gdml_path = (
-        resources.files("pygeomhades") / "models" / "dummy" / "bottom_plate_dummy.gdml"
+    # box with a cavity centered on its edge at y = +depth/2
+    reg = geant4.Registry()
+    p, cav = plate_metadata, plate_metadata.cavity
+    plate = geant4.solid.Subtraction(
+        "final_bottom_plate",
+        geant4.solid.Box("bottom_plate", p.width, p.depth, p.height, reg),
+        geant4.solid.Box("cavity_bottom_plate", cav.width, cav.depth, cav.height, reg),
+        [[0, 0, 0], [0, p.depth / 2, 0]],
+        reg,
     )
-
-    replacements = {
-        "bottom_plate_width": plate_metadata.width,
-        "bottom_plate_depth": plate_metadata.depth,
-        "bottom_plate_height": plate_metadata.height,
-        "bottom_cavity_plate_width": plate_metadata.cavity.width,
-        "bottom_cavity_plate_depth": plate_metadata.cavity.depth,
-        "bottom_cavity_plate_height": plate_metadata.cavity.height,
-    }
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return geant4.LogicalVolume(
+        plate, get_material("aluminium", reg), "Bottom_plate", reg
+    )
 
 
 def create_lead_castle(
-    table_num: int, castle_dimensions: AttrsDict, from_gdml: bool = True
+    table_num: int, castle_dimensions: AttrsDict
 ) -> geant4.LogicalVolume:
     """Create the lead castle.
 
@@ -405,155 +292,104 @@ def create_lead_castle(
                 height: 100
                 depth: 100
                 width: 100
-
-    from_gdml
-        Whether to construct from a GDML file
     """
     if table_num not in [1, 2]:
         msg = f"Table number must be 1 or 2, not {table_num}"
         raise ValueError(msg)
 
-    if not from_gdml:
-        reg = geant4.Registry()
-        dims = castle_dimensions
+    reg = geant4.Registry()
+    dims = castle_dimensions
 
-        def box(name, d):
-            return geant4.solid.Box(name, d.width, d.depth, d.height, reg)
+    def box(name, d):
+        return geant4.solid.Box(name, d.width, d.depth, d.height, reg)
 
-        if table_num == 1:
-            # the cavity is the inner cavity plus a box shifted towards +y
-            cavity = geant4.solid.Union(
-                "total_cavity_1",
-                box("inner_cavity_base_1", dims.inner_cavity),
-                box("cavity_base_1", dims.cavity),
-                [
-                    [0, 0, 0],
-                    [
-                        0,
-                        dims.inner_cavity.depth / 2
-                        + (dims.base.depth - dims.inner_cavity.depth) / 4,
-                        (dims.inner_cavity.height - dims.cavity.height) / 2,
-                    ],
-                ],
-                reg,
-            )
-            castle = geant4.solid.Subtraction(
-                "base_cavity_1",
-                box("base_lead_castle_1", dims.base),
-                cavity,
-                [[0, 0, 0], [0, 0, 0]],
-                reg,
-            )
-            # the top and front blocks overlap the base by 0.01 mm, so that
-            # the union has no coincident surfaces
-            castle = geant4.solid.Union(
-                "top_base_1",
-                castle,
-                box("top_lead_castle_1", dims.top),
-                [[0, 0, 0], [0, 0, -(dims.base.height + dims.top.height) / 2 - 0.01]],
-                reg,
-            )
-            castle = geant4.solid.Union(
-                "final_lead_castle_1",
-                castle,
-                box("front_1", dims.front),
-                [
-                    [0, 0, 0],
-                    [
-                        0,
-                        (dims.base.depth + dims.front.depth) / 2 - 0.01,
-                        (dims.base.height - dims.front.height) / 2,
-                    ],
-                ],
-                reg,
-            )
-            return geant4.LogicalVolume(
-                castle, get_material("lead", reg), "Lead_castle", reg
-            )
-
-        # table 2: the top block is separated from the base by the copper plate
-        cu_height = dims.copper_plate.height
-        castle = geant4.solid.Subtraction(
-            "base_cavity_2",
-            box("base_lead_castle_2", dims.base),
-            box("inner_cavity_lead_castle_2", dims.inner_cavity),
-            [[0, 0, 0], [0, 0, 0]],
-            reg,
-        )
-        castle = geant4.solid.Union(
-            "final_lead_castle_2",
-            castle,
-            box("top_lead_castle_2", dims.top),
+    if table_num == 1:
+        # the cavity is the inner cavity plus a box shifted towards +y
+        cavity = geant4.solid.Union(
+            "total_cavity_1",
+            box("inner_cavity_base_1", dims.inner_cavity),
+            box("cavity_base_1", dims.cavity),
             [
                 [0, 0, 0],
-                [0, 0, -((dims.base.height + dims.top.height) / 2 + cu_height)],
+                [
+                    0,
+                    dims.inner_cavity.depth / 2
+                    + (dims.base.depth - dims.inner_cavity.depth) / 4,
+                    (dims.inner_cavity.height - dims.cavity.height) / 2,
+                ],
             ],
             reg,
         )
-        castle_lv = geant4.LogicalVolume(
-            castle, get_material("lead_table2", reg), "Lead_castle", reg
-        )
-        # FIXME: the copper plate lies in the gap between base and top, i.e.
-        # outside of its mother volume
-        plate_lv = geant4.LogicalVolume(
-            box("copper_plate", dims.copper_plate),
-            get_material("copper", reg),
-            "Copper_plate",
+        castle = geant4.solid.Subtraction(
+            "base_cavity_1",
+            box("base_lead_castle_1", dims.base),
+            cavity,
+            [[0, 0, 0], [0, 0, 0]],
             reg,
         )
-        _place(plate_lv, castle_lv, reg, z=-(dims.base.height + cu_height) / 2)
-        return castle_lv
+        # the top and front blocks overlap the base by 0.01 mm, so that
+        # the union has no coincident surfaces
+        castle = geant4.solid.Union(
+            "top_base_1",
+            castle,
+            box("top_lead_castle_1", dims.top),
+            [[0, 0, 0], [0, 0, -(dims.base.height + dims.top.height) / 2 - 0.01]],
+            reg,
+        )
+        castle = geant4.solid.Union(
+            "final_lead_castle_1",
+            castle,
+            box("front_1", dims.front),
+            [
+                [0, 0, 0],
+                [
+                    0,
+                    (dims.base.depth + dims.front.depth) / 2 - 0.01,
+                    (dims.base.height - dims.front.height) / 2,
+                ],
+            ],
+            reg,
+        )
+        return geant4.LogicalVolume(
+            castle, get_material("lead", reg), "Lead_castle", reg
+        )
 
-    dummy_gdml_path = (
-        resources.files("pygeomhades")
-        / "models"
-        / "dummy"
-        / f"lead_castle_table{table_num}_dummy.gdml"
+    # table 2: the top block is separated from the base by the copper plate
+    cu_height = dims.copper_plate.height
+    castle = geant4.solid.Subtraction(
+        "base_cavity_2",
+        box("base_lead_castle_2", dims.base),
+        box("inner_cavity_lead_castle_2", dims.inner_cavity),
+        [[0, 0, 0], [0, 0, 0]],
+        reg,
     )
-
-    if table_num == 1:
-        replacements = {
-            "base_width_1": castle_dimensions.base.width,
-            "base_depth_1": castle_dimensions.base.depth,
-            "base_height_1": castle_dimensions.base.height,
-            "inner_cavity_width_1": castle_dimensions.inner_cavity.width,
-            "inner_cavity_depth_1": castle_dimensions.inner_cavity.depth,
-            "inner_cavity_height_1": castle_dimensions.inner_cavity.height,
-            "cavity_width_1": castle_dimensions.cavity.width,
-            "cavity_depth_1": castle_dimensions.cavity.depth,
-            "cavity_height_1": castle_dimensions.cavity.height,
-            "top_width_1": castle_dimensions.top.width,
-            "top_depth_1": castle_dimensions.top.depth,
-            "top_height_1": castle_dimensions.top.height,
-            "front_width_1": castle_dimensions.front.width,
-            "front_depth_1": castle_dimensions.front.depth,
-            "front_height_1": castle_dimensions.front.height,
-        }
-
-    elif table_num == 2:
-        replacements = {
-            "base_width_2": castle_dimensions.base.width,
-            "base_depth_2": castle_dimensions.base.depth,
-            "base_height_2": castle_dimensions.base.height,
-            "inner_cavity_width_2": castle_dimensions.inner_cavity.width,
-            "inner_cavity_depth_2": castle_dimensions.inner_cavity.depth,
-            "inner_cavity_height_2": castle_dimensions.inner_cavity.height,
-            "top_width_2": castle_dimensions.top.width,
-            "top_depth_2": castle_dimensions.top.depth,
-            "top_height_2": castle_dimensions.top.height,
-            "copper_plate_width": castle_dimensions.copper_plate.width,
-            "copper_plate_depth": castle_dimensions.copper_plate.depth,
-            "copper_plate_height": castle_dimensions.copper_plate.height,
-        }
-
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    castle = geant4.solid.Union(
+        "final_lead_castle_2",
+        castle,
+        box("top_lead_castle_2", dims.top),
+        [
+            [0, 0, 0],
+            [0, 0, -((dims.base.height + dims.top.height) / 2 + cu_height)],
+        ],
+        reg,
+    )
+    castle_lv = geant4.LogicalVolume(
+        castle, get_material("lead_table2", reg), "Lead_castle", reg
+    )
+    # FIXME: the copper plate lies in the gap between base and top, i.e.
+    # outside of its mother volume
+    plate_lv = geant4.LogicalVolume(
+        box("copper_plate", dims.copper_plate),
+        get_material("copper", reg),
+        "Copper_plate",
+        reg,
+    )
+    _place(plate_lv, castle_lv, reg, z=-(dims.base.height + cu_height) / 2)
+    return castle_lv
 
 
 def create_source(
-    source_type: str,
-    source_dims: AttrsDict,
-    holder_dims: AttrsDict | None,
-    from_gdml: bool = True,
+    source_type: str, source_dims: AttrsDict, holder_dims: AttrsDict | None
 ) -> geant4.LogicalVolume:
     """Create the geometry of the source.
 
@@ -605,264 +441,167 @@ def create_source(
 
     holder_dims
         Dimensions of the source holder (see :func:`get_source_holder`).
-
-    from_gdml
-        Whether to construct from a GDML file
     """
-    if not from_gdml:
-        reg = geant4.Registry()
-        d = source_dims
+    reg = geant4.Registry()
+    d = source_dims
 
-        def lv(solid, material, name):
-            return geant4.LogicalVolume(solid, get_material(material, reg), name, reg)
-
-        if source_type == "am_HS1":
-            # encapsulated source inside a collimator with a cylindrical beam
-            # channel above it
-            col = d.collimator
-            source = lv(_tube("source", d.width / 2, d.height, reg), "quartz", "Source")
-            capsule = lv(
-                _tube("source_capsule", d.capsule.width / 2, d.capsule.height, reg),
-                "steel",
-                "Source_Encapsulated",
-            )
-            _place(
-                source, capsule, reg, z=(d.capsule.height - d.height) / 2 - col.window
-            )
-            beam = lv(
-                _tube("collimator_beam", col.beam_width / 2, col.beam_height, reg),
-                "air",
-                "Collimator_Beam",
-            )
-            top = lv(
-                geant4.solid.Box("collimator", col.width, col.depth, col.height, reg),
-                "G4_Cu",
-                "Source_Collimated",
-            )
-            _place(beam, top, reg, z=(col.height - col.beam_height) / 2)
-            _place(
-                capsule,
-                top,
-                reg,
-                z=-d.capsule.height / 2 - col.beam_height + col.height / 2,
-            )
-
-        elif source_type == "am_HS6":
-            source = lv(
-                _tube("source", d.width / 2, d.height, reg), "acrylic", "Source"
-            )
-            top = lv(
-                geant4.solid.Box(
-                    "source_capsule",
-                    d.capsule.width,
-                    d.capsule.depth,
-                    d.capsule.height,
-                    reg,
-                ),
-                "acrylic",
-                "Source_Encapsulated",
-            )
-            _place(source, top, reg)
-
-        elif source_type in ["ba_HS4", "co_HS5"]:
-            # source on a foil, surrounded by an aluminium ring
-            ring = d.al_ring
-            source = lv(_tube("source", d.width / 2, d.height, reg), "hd1000", "Source")
-            foil = lv(
-                _tube("source_foil", ring.width_min / 2, d.foil.height, reg),
-                "hd1000",
-                "Source_foil",
-            )
-            _place(source, foil, reg)
-            al_ring = lv(
-                _tube(
-                    "source_Alring",
-                    ring.width_max / 2,
-                    ring.height,
-                    reg,
-                    r_min=ring.width_min / 2,
-                ),
-                "aluminium",
-                "Source_Alring",
-            )
-            top = lv(
-                _tube("source_vacuum", ring.width_max / 2, ring.height, reg),
-                "vacuum",
-                "Source_Encapsulated",
-            )
-            _place(foil, top, reg)
-            _place(al_ring, top, reg)
-
-        elif source_type == "th_HS2":
-            # encapsulated source with epoxy, in the air cavity of a copper
-            # holder. The copper holder is a cylinder with a narrower bottom.
-            cu = d.copper
-            cu_all_height = cu.height + cu.bottom_height
-            source = lv(_tube("source", d.width / 2, d.height, reg), "quartz", "Source")
-            epoxy = lv(
-                _tube("source_epoxy", d.epoxy.width / 2, d.epoxy.height, reg),
-                "epoxy",
-                "Source_Epoxy",
-            )
-            capsule = lv(
-                _tube("source_capsule", d.capsule.width / 2, d.capsule.height, reg),
-                "steel",
-                "Source_Encapsulated",
-            )
-            _place(source, capsule, reg)
-            _place(epoxy, capsule, reg, z=(d.capsule.height - d.epoxy.height) / 2)
-            cavity = lv(
-                _polycone(
-                    "CuSource_holder_cavity",
-                    [
-                        (0, 0, cu.cavity_width / 2),
-                        (cu_all_height, 0, cu.cavity_width / 2),
-                    ],
-                    reg,
-                ),
-                "air",
-                "CuSource_Holder_Cavity",
-            )
-            _place(
-                capsule,
-                cavity,
-                reg,
-                z=cu_all_height - d.capsule.height / 2 - d.offset_height,
-            )
-            top = lv(
-                _polycone(
-                    "CuSource_holder",
-                    [
-                        (0, 0, cu.width / 2),
-                        (cu.height, 0, cu.width / 2),
-                        (cu.height, 0, cu.bottom_width / 2),
-                        (cu_all_height, 0, cu.bottom_width / 2),
-                    ],
-                    reg,
-                ),
-                "copper",
-                "CuSource_Holder",
-            )
-            _place(cavity, top, reg)
-
-        else:
-            msg = f"source type of {source_type} is not defined."
-            raise RuntimeError(msg)
-
-        return top
-
-    dummy_gdml_path = (
-        resources.files("pygeomhades")
-        / "models"
-        / "dummy"
-        / f"source_{source_type}_dummy.gdml"
-    )
+    def lv(solid, material, name):
+        return geant4.LogicalVolume(solid, get_material(material, reg), name, reg)
 
     if source_type == "am_HS1":
-        replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_capsule_height": source_dims.capsule.height,
-            "source_capsule_width": source_dims.capsule.width,
-            "window_source": source_dims.collimator.window,
-            "collimator_height": source_dims.collimator.height,
-            "collimator_depth": source_dims.collimator.depth,
-            "collimator_width": source_dims.collimator.width,
-            "collimator_beam_height": source_dims.collimator.beam_height,
-            "collimator_beam_width": source_dims.collimator.beam_width,
-        }
+        # encapsulated source inside a collimator with a cylindrical beam
+        # channel above it
+        col = d.collimator
+        source = lv(_tube("source", d.width / 2, d.height, reg), "quartz", "Source")
+        capsule = lv(
+            _tube("source_capsule", d.capsule.width / 2, d.capsule.height, reg),
+            "steel",
+            "Source_Encapsulated",
+        )
+        _place(source, capsule, reg, z=(d.capsule.height - d.height) / 2 - col.window)
+        beam = lv(
+            _tube("collimator_beam", col.beam_width / 2, col.beam_height, reg),
+            "air",
+            "Collimator_Beam",
+        )
+        top = lv(
+            geant4.solid.Box("collimator", col.width, col.depth, col.height, reg),
+            "G4_Cu",
+            "Source_Collimated",
+        )
+        _place(beam, top, reg, z=(col.height - col.beam_height) / 2)
+        _place(
+            capsule,
+            top,
+            reg,
+            z=-d.capsule.height / 2 - col.beam_height + col.height / 2,
+        )
 
     elif source_type == "am_HS6":
-        replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_capsule_height": source_dims.capsule.height,
-            "source_capsule_width": source_dims.capsule.width,
-            "source_capsule_depth": source_dims.capsule.depth,
-        }
+        source = lv(_tube("source", d.width / 2, d.height, reg), "acrylic", "Source")
+        top = lv(
+            geant4.solid.Box(
+                "source_capsule",
+                d.capsule.width,
+                d.capsule.depth,
+                d.capsule.height,
+                reg,
+            ),
+            "acrylic",
+            "Source_Encapsulated",
+        )
+        _place(source, top, reg)
 
     elif source_type in ["ba_HS4", "co_HS5"]:
-        replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_foil_height": source_dims.foil.height,
-            "source_Alring_height": source_dims.al_ring.height,
-            "source_Alring_width_min": source_dims.al_ring.width_min,
-            "source_Alring_width_max": source_dims.al_ring.width_max,
-        }
+        # source on a foil, surrounded by an aluminium ring
+        ring = d.al_ring
+        source = lv(_tube("source", d.width / 2, d.height, reg), "hd1000", "Source")
+        foil = lv(
+            _tube("source_foil", ring.width_min / 2, d.foil.height, reg),
+            "hd1000",
+            "Source_foil",
+        )
+        _place(source, foil, reg)
+        al_ring = lv(
+            _tube(
+                "source_Alring",
+                ring.width_max / 2,
+                ring.height,
+                reg,
+                r_min=ring.width_min / 2,
+            ),
+            "aluminium",
+            "Source_Alring",
+        )
+        top = lv(
+            _tube("source_vacuum", ring.width_max / 2, ring.height, reg),
+            "vacuum",
+            "Source_Encapsulated",
+        )
+        _place(foil, top, reg)
+        _place(al_ring, top, reg)
 
     elif source_type == "th_HS2":
-        replacements = {
-            "source_height": source_dims.height,
-            "source_width": source_dims.width,
-            "source_capsule_height": source_dims.capsule.height,
-            "source_capsule_width": source_dims.capsule.width,
-            "source_epoxy_height": source_dims.epoxy.height,
-            "source_epoxy_width": source_dims.epoxy.width,
-            "CuSource_holder_height": source_dims.copper.height,
-            "CuSource_holder_width": source_dims.copper.width,
-            "CuSource_holder_cavity_width": source_dims.copper.cavity_width,
-            "CuSource_holder_bottom_height": source_dims.copper.bottom_height,
-            "CuSource_holder_bottom_width": source_dims.copper.bottom_width,
-            "source_offset_height": source_dims.offset_height,
-        }
+        # encapsulated source with epoxy, in the air cavity of a copper
+        # holder. The copper holder is a cylinder with a narrower bottom.
+        cu = d.copper
+        cu_all_height = cu.height + cu.bottom_height
+        source = lv(_tube("source", d.width / 2, d.height, reg), "quartz", "Source")
+        epoxy = lv(
+            _tube("source_epoxy", d.epoxy.width / 2, d.epoxy.height, reg),
+            "epoxy",
+            "Source_Epoxy",
+        )
+        capsule = lv(
+            _tube("source_capsule", d.capsule.width / 2, d.capsule.height, reg),
+            "steel",
+            "Source_Encapsulated",
+        )
+        _place(source, capsule, reg)
+        _place(epoxy, capsule, reg, z=(d.capsule.height - d.epoxy.height) / 2)
+        cavity = lv(
+            _polycone(
+                "CuSource_holder_cavity",
+                [
+                    (0, 0, cu.cavity_width / 2),
+                    (cu_all_height, 0, cu.cavity_width / 2),
+                ],
+                reg,
+            ),
+            "air",
+            "CuSource_Holder_Cavity",
+        )
+        _place(
+            capsule,
+            cavity,
+            reg,
+            z=cu_all_height - d.capsule.height / 2 - d.offset_height,
+        )
+        top = lv(
+            _polycone(
+                "CuSource_holder",
+                [
+                    (0, 0, cu.width / 2),
+                    (cu.height, 0, cu.width / 2),
+                    (cu.height, 0, cu.bottom_width / 2),
+                    (cu_all_height, 0, cu.bottom_width / 2),
+                ],
+                reg,
+            ),
+            "copper",
+            "CuSource_Holder",
+        )
+        _place(cavity, top, reg)
 
     else:
         msg = f"source type of {source_type} is not defined."
         raise RuntimeError(msg)
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return top
 
 
-def create_th_plate(
-    source_dims: AttrsDict, from_gdml: bool = True
-) -> geant4.LogicalVolume:
+def create_th_plate(source_dims: AttrsDict) -> geant4.LogicalVolume:
     """Construct the plate for the Th source
 
     Parameters
     ----------
     source_dims
         See :func:`create_source` for more information.
-    from_gdml
-        Whether to construct from a GDML file
     """
-    if not from_gdml:
-        reg = geant4.Registry()
-        plates = source_dims.plates
-        tube = _tube(
-            "source_plates",
-            plates.width / 2,
-            plates.height,
-            reg,
-            r_min=plates.cavity_width / 2,
-        )
-        return geant4.LogicalVolume(
-            tube, get_material("G4_Pb", reg), "Source_Plates", reg
-        )
-
-    dummy_gdml_path = (
-        resources.files("pygeomhades")
-        / "models"
-        / "dummy"
-        / "source_th_HS2_plates_dummy.gdml"
+    reg = geant4.Registry()
+    plates = source_dims.plates
+    tube = _tube(
+        "source_plates",
+        plates.width / 2,
+        plates.height,
+        reg,
+        r_min=plates.cavity_width / 2,
     )
-    source = source_dims
-
-    replacements = {
-        "source_plates_height": source.plates.height,
-        "source_plates_width": source.plates.width,
-        "source_plates_cavity_width": source.plates.cavity_width,
-    }
-
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return geant4.LogicalVolume(tube, get_material("G4_Pb", reg), "Source_Plates", reg)
 
 
 def create_source_holder(
-    source_type: str,
-    holder_dims: AttrsDict,
-    source_z: float,
-    meas_type: str = "lat",
-    from_gdml: bool = True,
+    source_type: str, holder_dims: AttrsDict, source_z: float, meas_type: str = "lat"
 ) -> geant4.LogicalVolume:
     """Get the source holder geometry.
 
@@ -890,191 +629,115 @@ def create_source_holder(
         The measurement type (for th only) either lat or top.
     source_z
         The z position of the source from the cryostat bottom.
-    from_gdml
-        Whether to construct from a GDML file
     """
-    if not from_gdml:
-        reg = geant4.Registry()
-        h = holder_dims
-        r_out = h.outer_width / 2
-        r_in = h.inner_width / 2
+    reg = geant4.Registry()
+    h = holder_dims
+    r_out = h.outer_width / 2
+    r_in = h.inner_width / 2
 
-        if (
-            source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2"]
-            and meas_type == "lat"
-        ):
-            # tube around the cryostat, with a radial hole for the source
-            holder = geant4.solid.Subtraction(
-                "source_holder",
-                _tube("cylinder_source_holder", r_out, h.height, reg, r_min=r_in),
-                _tube("cavity_source_holder", h.cavity_width / 2, h.cavity_height, reg),
-                [[np.pi / 2, 0, 0], [0, (r_in + r_out) / 2, 0]],
-                reg,
-            )
-
-        elif source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2", "am_HS6"]:
-            # cap on top of the cryostat (z = 0), with a pocket for the source
-            # in the top plate, extending down to the source position
-            s = h.source
-            z_cryo = source_z + s.top_plate_height / 2
-            z_end = source_z + s.top_bottom_height
-            sides = [
-                (s.top_height, r_in, r_out),
-                (z_cryo, r_in, r_out),
-                (z_cryo, s.bottom_inner_width / 2, r_out),
-                (z_end, s.bottom_inner_width / 2, r_out),
-            ]
-
-            if source_type != "am_HS6":
-                holder = _polycone(
-                    "source_holder",
-                    [
-                        (0, s.top_plate_width / 2, r_out),
-                        (s.top_plate_height, s.top_plate_width / 2, r_out),
-                        (s.top_plate_height, s.top_inner_width / 2, r_out),
-                        (s.top_height, s.top_inner_width / 2, r_out),
-                        *sides,
-                    ],
-                    reg,
-                )
-            else:
-                # the pockets for the Am HS6 source are rectangular
-                holder = geant4.solid.Subtraction(
-                    "source_holder_endcap",
-                    _polycone(
-                        "source_holder_cylinder",
-                        [(0, 0, r_out), (s.top_height, 0, r_out), *sides],
-                        reg,
-                    ),
-                    geant4.solid.Box(
-                        "rectangular_plate",
-                        s.top_plate_width,
-                        s.top_plate_depth,
-                        s.top_plate_height,
-                        reg,
-                    ),
-                    [[0, 0, 0], [0, 0, s.top_plate_height / 2]],
-                    reg,
-                )
-                holder = geant4.solid.Subtraction(
-                    "source_holder_sub",
-                    holder,
-                    geant4.solid.Box(
-                        "source_holder_top_inner",
-                        s.top_inner_width,
-                        s.top_inner_depth,
-                        s.top_height,
-                        reg,
-                    ),
-                    [[0, 0, 0], [0, 0, s.top_height / 2 + s.top_plate_height]],
-                    reg,
-                )
-        else:
-            msg = f"source type {source_type} not implemented."
-            raise RuntimeError(msg)
-
-        return geant4.LogicalVolume(
-            holder, get_material("acrylic_source_holder", reg), "Source_Holder", reg
+    if source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2"] and meas_type == "lat":
+        # tube around the cryostat, with a radial hole for the source
+        holder = geant4.solid.Subtraction(
+            "source_holder",
+            _tube("cylinder_source_holder", r_out, h.height, reg, r_min=r_in),
+            _tube("cavity_source_holder", h.cavity_width / 2, h.cavity_height, reg),
+            [[np.pi / 2, 0, 0], [0, (r_in + r_out) / 2, 0]],
+            reg,
         )
 
-    source_holder = holder_dims
-    dummy_path = resources.files("pygeomhades") / "models" / "dummy"
+    elif source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2", "am_HS6"]:
+        # cap on top of the cryostat (z = 0), with a pocket for the source
+        # in the top plate, extending down to the source position
+        s = h.source
+        z_cryo = source_z + s.top_plate_height / 2
+        z_end = source_z + s.top_bottom_height
+        sides = [
+            (s.top_height, r_in, r_out),
+            (z_cryo, r_in, r_out),
+            (z_cryo, s.bottom_inner_width / 2, r_out),
+            (z_end, s.bottom_inner_width / 2, r_out),
+        ]
 
-    if source_type in ["am_HS1", "ba_HS4", "co_HS5", "th_HS2"]:
-        if meas_type == "lat":
-            dummy_gdml_path = dummy_path / "source_holder_lat_dummy.gdml"
-
-            replacements = {
-                "cavity_source_holder_height": source_holder.cavity_height,
-                "source_holder_height": source_holder.height,
-                "source_holder_outer_width": source_holder.outer_width,
-                "source_holder_inner_width": source_holder.inner_width,
-                "cavity_source_holder_width": source_holder.cavity_width,
-            }
+        if source_type != "am_HS6":
+            holder = _polycone(
+                "source_holder",
+                [
+                    (0, s.top_plate_width / 2, r_out),
+                    (s.top_plate_height, s.top_plate_width / 2, r_out),
+                    (s.top_plate_height, s.top_inner_width / 2, r_out),
+                    (s.top_height, s.top_inner_width / 2, r_out),
+                    *sides,
+                ],
+                reg,
+            )
         else:
-            dummy_gdml_path = dummy_path / "source_holder_dummy.gdml"
-
-            replacements = {
-                "source_holder_top_plate_height": source_holder.source.top_plate_height,
-                "source_holder_top_height": source_holder.source.top_height,
-                "source_holder_topbottom_height": source_holder.source.top_bottom_height,
-                "source_holder_top_plate_width": source_holder.source.top_plate_width,
-                "source_holder_top_inner_width": source_holder.source.top_inner_width,
-                "source_holder_inner_width": source_holder.inner_width,
-                "source_holder_bottom_inner_width": source_holder.source.bottom_inner_width,
-                "source_holder_outer_width": source_holder.outer_width,
-                "position_source_fromcryostat_z": source_z,
-            }
-
-    elif source_type == "am_HS6":
-        dummy_gdml_path = dummy_path / "source_holder_am_HS6_dummy.gdml"
-
-        replacements = {
-            "source_holder_top_height": source_holder.source.top_height,
-            "position_source_fromcryostat_z": source_z,
-            "source_holder_top_plate_height": source_holder.source.top_plate_height,
-            "source_holder_top_plate_width": source_holder.source.top_plate_width,
-            "source_holder_top_plate_depth": source_holder.source.top_plate_depth,
-            "source_holder_topbottom_height": source_holder.source.top_bottom_height,
-            "source_holder_top_inner_width": source_holder.source.top_inner_width,
-            "source_holder_top_inner_depth": source_holder.source.top_inner_depth,
-            "source_holder_inner_width": source_holder.inner_width,
-            "source_holder_bottom_inner_width": source_holder.source.bottom_inner_width,
-            "source_holder_outer_width": source_holder.outer_width,
-        }
-
+            # the pockets for the Am HS6 source are rectangular
+            holder = geant4.solid.Subtraction(
+                "source_holder_endcap",
+                _polycone(
+                    "source_holder_cylinder",
+                    [(0, 0, r_out), (s.top_height, 0, r_out), *sides],
+                    reg,
+                ),
+                geant4.solid.Box(
+                    "rectangular_plate",
+                    s.top_plate_width,
+                    s.top_plate_depth,
+                    s.top_plate_height,
+                    reg,
+                ),
+                [[0, 0, 0], [0, 0, s.top_plate_height / 2]],
+                reg,
+            )
+            holder = geant4.solid.Subtraction(
+                "source_holder_sub",
+                holder,
+                geant4.solid.Box(
+                    "source_holder_top_inner",
+                    s.top_inner_width,
+                    s.top_inner_depth,
+                    s.top_height,
+                    reg,
+                ),
+                [[0, 0, 0], [0, 0, s.top_height / 2 + s.top_plate_height]],
+                reg,
+            )
     else:
         msg = f"source type {source_type} not implemented."
         raise RuntimeError(msg)
 
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return geant4.LogicalVolume(
+        holder, get_material("acrylic_source_holder", reg), "Source_Holder", reg
+    )
 
 
-def create_cryostat(
-    cryostat_meta: AttrsDict, from_gdml: bool = True
-) -> geant4.LogicalVolume:
+def create_cryostat(cryostat_meta: AttrsDict) -> geant4.LogicalVolume:
     """Create the cryostat logical volume.
 
     Parameters
     ----------
     cryostat_meta
         Metadata describing the cryostat geometry (see :func:`create_vacuum_cavity`).
-    from_gdml
-        Whether to construct from a GDML file
     """
-    if not from_gdml:
-        # closed cylinder with a vacuum cavity. z = 0 is the cryostat top.
-        reg = geant4.Registry()
-        r_out = cryostat_meta.width / 2
-        r_in = r_out - cryostat_meta.thickness
-        start = cryostat_meta.position_cavity_from_top
-        end = cryostat_meta.height - cryostat_meta.position_cavity_from_bottom
+    # closed cylinder with a vacuum cavity. z = 0 is the cryostat top.
+    reg = geant4.Registry()
+    r_out = cryostat_meta.width / 2
+    r_in = r_out - cryostat_meta.thickness
+    start = cryostat_meta.position_cavity_from_top
+    end = cryostat_meta.height - cryostat_meta.position_cavity_from_bottom
 
-        cryostat = _polycone(
-            "cryostat",
-            [
-                (0, 0, r_out),
-                (start, 0, r_out),
-                (start, r_in, r_out),
-                (end, r_in, r_out),
-                (end, 0, r_out),
-                (cryostat_meta.height, 0, r_out),
-            ],
-            reg,
-        )
-        return geant4.LogicalVolume(
-            cryostat, get_material("en_aw_2011t8", reg), "Cryostat", reg
-        )
-
-    dummy_gdml_path = (
-        resources.files("pygeomhades") / "models" / "dummy" / "cryostat_dummy.gdml"
+    cryostat = _polycone(
+        "cryostat",
+        [
+            (0, 0, r_out),
+            (start, 0, r_out),
+            (start, r_in, r_out),
+            (end, r_in, r_out),
+            (end, 0, r_out),
+            (cryostat_meta.height, 0, r_out),
+        ],
+        reg,
     )
-
-    replacements = {
-        "cryostat_height": cryostat_meta.height,
-        "cryostat_width": cryostat_meta.width,
-        "cryostat_thickness": cryostat_meta.thickness,
-        "position_cryostat_cavity_fromTop": cryostat_meta.position_cavity_from_top,
-        "position_cryostat_cavity_fromBottom": cryostat_meta.position_cavity_from_bottom,
-    }
-    return read_gdml_with_replacements(dummy_gdml_path, replacements)
+    return geant4.LogicalVolume(
+        cryostat, get_material("en_aw_2011t8", reg), "Cryostat", reg
+    )
