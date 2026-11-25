@@ -1,0 +1,9 @@
+- valid_from: 20190101T000000Z
+  category: all
+  apply:
+    - castles_2019.yaml
+- valid_from: 20200101T000000Z
+  category: all
+  mode: reset
+  apply:
+    - castles_2020.yaml

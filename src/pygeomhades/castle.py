@@ -27,14 +27,16 @@ def make_bottom_plate(plate: AttrsDict) -> geant4.LogicalVolume:
     )
 
 
-def make_lead_castle(table: int, castle: AttrsDict) -> geant4.LogicalVolume:
-    """Create the lead castle of table 1 or 2.
+def make_lead_castle(castle: AttrsDict) -> geant4.LogicalVolume:
+    """Create a lead castle.
 
-    `castle` is ``hardware/setup/lead_castle/table<table>``.
+    `castle` is a design of ``hardware/setup/lead_castle``: the current castle
+    (``legend``, with port and sliding door) or the castle of the GERDA era
+    (``gerda``, with a copper plate between base and top block).
     """
     reg = geant4.Registry()
 
-    if table == 1:
+    if "front" in castle:
         # the cavity is the inner cavity plus a box shifted towards +y
         cavity = geant4.solid.Union(
             "total_cavity_1",
@@ -92,7 +94,7 @@ def make_lead_castle(table: int, castle: AttrsDict) -> geant4.LogicalVolume:
             solid, get_material("lead", reg), "Lead_castle", reg
         )
 
-    # table 2: the top block is separated from the base by the copper plate
+    # GERDA-era castle: the top block is separated from the base by the copper plate
     cu_height = castle.copper_plate.height_in_mm
     solid = geant4.solid.Subtraction(
         "base_cavity_2",
