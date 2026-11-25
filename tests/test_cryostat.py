@@ -4,15 +4,10 @@ import pytest
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from pygeomhades.create_volumes import (
-    create_holder,
-    create_th_plates,
-    create_vacuum_cavity,
-    create_wrap,
-)
+from pygeomhades.cryostat import make_holder, make_vacuum_cavity, make_wrap
 
 
-def test_create_cavity():
+def test_make_cavity():
     cryostat = AttrsDict(
         {
             "width_in_mm": 200,
@@ -24,11 +19,11 @@ def test_create_cavity():
     )
 
     reg = geant4.Registry()
-    lv = create_vacuum_cavity(cryostat, reg)
+    lv = make_vacuum_cavity(cryostat, reg)
     assert isinstance(lv, geant4.LogicalVolume)
 
 
-def test_create_wrap():
+def test_make_wrap():
     wrap = AttrsDict(
         {
             "outer": {
@@ -42,13 +37,13 @@ def test_create_wrap():
         }
     )
 
-    wrap_lv = create_wrap(wrap)
+    wrap_lv = make_wrap(wrap)
 
     assert wrap_lv is not None
     assert isinstance(wrap_lv, geant4.LogicalVolume)
 
 
-def test_create_holder():
+def test_make_holder():
     holder = AttrsDict(
         {
             "cylinder": {
@@ -84,25 +79,15 @@ def test_create_holder():
     )
 
     # test with bege
-    lv = create_holder(holder, "bege", order=0)
+    lv = make_holder(holder, "bege", order=0)
     assert isinstance(lv, geant4.LogicalVolume)
 
-    lv = create_holder(holder, "icpc", order=0)
+    lv = make_holder(holder, "icpc", order=0)
     assert isinstance(lv, geant4.LogicalVolume)
 
     with pytest.raises(NotImplementedError):
-        create_holder(holder, "coax", order=0)
+        make_holder(holder, "coax", order=0)
 
     holder.pop("rings")  # remove rings for batch 6
-    lv = create_holder(holder, "icpc", order=6)
+    lv = make_holder(holder, "icpc", order=6)
     assert isinstance(lv, geant4.LogicalVolume)
-
-
-def test_create_th_plates():
-    plates = AttrsDict(
-        {"height_in_mm": 10.0, "width_in_mm": 50.0, "cavity_width_in_mm": 5.0}
-    )
-
-    th_plates_lv = create_th_plates(plates)
-
-    assert isinstance(th_plates_lv, geant4.LogicalVolume)

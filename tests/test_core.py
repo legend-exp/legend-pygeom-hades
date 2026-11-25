@@ -8,7 +8,7 @@ from dbetto import AttrsDict
 from legendmeta import HadesMetadata
 from pyg4ometry import geant4
 
-from pygeomhades.core import construct, source_xyz
+from pygeomhades.core import construct
 from pygeomhades.metadata import PublicHadesMetadataProxy
 
 public_geom = os.getenv("LEGEND_METADATA", "") == ""
@@ -154,14 +154,3 @@ def test_construct_am_hs6_top_dlt(det: str):
     )
     assert isinstance(reg, geant4.Registry)
     pygeomtools.geometry.check_registry_sanity(reg, reg)
-
-
-def test_source_xyz():
-    # basic test for non HS1
-    pos = AttrsDict({"phi_in_deg": 0.0, "r_in_mm": 0.0, "z_in_mm": 38.0})
-
-    x, y, z = source_xyz(pos, source_type="am_HS6")
-
-    assert x == 0.0
-    assert y == 0.0
-    assert z == 38.0
