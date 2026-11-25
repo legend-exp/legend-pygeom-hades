@@ -139,7 +139,9 @@ def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     args = parser.parse_args(argv)
 
-    if not args.visualize and args.filename == "":
-        parser.error("no output file and no visualization specified")
+    if args.filename is None and not (
+        args.visualize or args.plot_profile or args.print_volumes or args.check_overlaps
+    ):
+        parser.error("no output file, visualization or other action specified")
 
     return args
