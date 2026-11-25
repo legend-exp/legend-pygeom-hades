@@ -63,6 +63,24 @@ def test_options(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
+    ("scene", "mesh_calls"), [(None, [100]), ("fine_mesh: false\n", [])]
+)
+def test_fine_mesh(tmp_path, monkeypatch, scene, mesh_calls):
+    calls = []
+    monkeypatch.setattr(viewer, "visualize", lambda reg, scene: None)
+    monkeypatch.setattr(cli.meshconfig, "setGlobalMeshSliceAndStack", calls.append)
+
+    vis_args = ["--visualize"]
+    if scene is not None:
+        scene_file = tmp_path / "scene.yaml"
+        scene_file.write_text(scene)
+        vis_args.append(str(scene_file))
+
+    dump_gdml_cli(["--public-geom", "--config", CONFIG, *vis_args])
+    assert calls == mesh_calls
+
+
+@pytest.mark.parametrize(
     "argv", [[], ["--print-volumes", "nonsense"], ["--config", CONFIG]]
 )
 def test_bad_arguments(argv):
