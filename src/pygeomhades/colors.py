@@ -18,20 +18,18 @@ log = logging.getLogger(__name__)
 #: (natural or enriched) share the ``Germanium`` entry.
 MATERIAL_COLORS = {
     "Germanium": [0.45, 0.46, 0.48, 1.0],
-    "Al": [0.80, 0.81, 0.83, 1.0],
-    "EN_AW-2011T8": [0.80, 0.81, 0.83, 1.0],  # aluminium alloy
-    "Ssteel": [0.55, 0.56, 0.58, 1.0],  # stainless steel
-    "metalCu": [0.72, 0.45, 0.20, 1.0],
-    "G4_Cu": [0.72, 0.45, 0.20, 1.0],
-    "Pb": [0.35, 0.36, 0.40, 1.0],
-    "G4_Pb": [0.35, 0.36, 0.40, 1.0],
-    "HD1000": [0.95, 0.95, 0.93, 0.8],  # white polyethylene
-    "Acrylic": [0.85, 0.92, 0.95, 0.5],
-    "SiliconDioxide": [0.95, 0.95, 0.95, 0.5],  # quartz
-    "epoxy_mod": [0.80, 0.60, 0.20, 0.7],
-    "Air": False,
+    "metal_aluminium": [0.80, 0.81, 0.83, 1.0],
+    "metal_aluminium_2011T8": [0.80, 0.81, 0.83, 1.0],
+    "metal_steel_316Ti": [0.55, 0.56, 0.58, 1.0],
+    "metal_copper": [0.72, 0.45, 0.20, 1.0],
+    "metal_lead": [0.35, 0.36, 0.40, 1.0],
+    "hdpe": [0.95, 0.95, 0.93, 0.8],  # white polyethylene
+    "pmma": [0.85, 0.92, 0.95, 0.5],
+    "silica": [0.95, 0.95, 0.95, 0.5],
+    "th_source_epoxy": [0.80, 0.60, 0.20, 0.7],
+    "air": False,
     "G4_AIR": False,
-    "Galactic": False,
+    "vacuum": False,
     "G4_Galactic": False,
 }
 

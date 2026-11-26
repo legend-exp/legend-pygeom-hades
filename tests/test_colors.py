@@ -13,9 +13,9 @@ from pygeomhades.core import construct
 def test_set_colors(caplog):
     reg = geant4.Registry()
     volumes = {
-        "Cryostat": "EN_AW-2011T8_0",
+        "Cryostat": "metal_aluminium_2011T8_0",
         "V00000A": "EnrichedGermanium0.900",
-        "Source_Alring": "Al",
+        "Source_Alring": "metal_aluminium",
         "lab_lv": "G4_AIR",
         "Mystery": "unobtainium",
     }
@@ -33,7 +33,10 @@ def test_set_colors(caplog):
     lvs = reg.logicalVolumeDict
     assert lvs["Cryostat"].pygeom_color_rgba == [0.80, 0.81, 0.83, 0.5]
     assert lvs["V00000A"].pygeom_color_rgba == colors.MATERIAL_COLORS["Germanium"]
-    assert lvs["Source_Alring"].pygeom_color_rgba == colors.MATERIAL_COLORS["Al"]
+    assert (
+        lvs["Source_Alring"].pygeom_color_rgba
+        == colors.MATERIAL_COLORS["metal_aluminium"]
+    )
     assert lvs["lab_lv"].pygeom_color_rgba is False
     assert not hasattr(lvs["Mystery"], "pygeom_color_rgba")
     assert "unobtainium" in caplog.text

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from .materials import get_material
+from .materials import HadesMaterialRegistry
 from .solids import box, place
 
 
@@ -15,6 +15,7 @@ def make_bottom_plate(plate: AttrsDict) -> geant4.LogicalVolume:
     `plate` is ``hardware/setup/bottom_plate``.
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
     solid = geant4.solid.Subtraction(
         "final_bottom_plate",
         box("bottom_plate", plate, reg),
@@ -22,9 +23,7 @@ def make_bottom_plate(plate: AttrsDict) -> geant4.LogicalVolume:
         [[0, 0, 0], [0, plate.depth_in_mm / 2, 0]],
         reg,
     )
-    return geant4.LogicalVolume(
-        solid, get_material("aluminium", reg), "Bottom_plate", reg
-    )
+    return geant4.LogicalVolume(solid, mats.metal_aluminium, "Bottom_plate", reg)
 
 
 def make_lead_castle(castle: AttrsDict) -> geant4.LogicalVolume:
@@ -35,6 +34,7 @@ def make_lead_castle(castle: AttrsDict) -> geant4.LogicalVolume:
     (``gerda``, with a copper plate between base and top block).
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
 
     if "front" in castle:
         # the cavity is the inner cavity plus a box shifted towards +y
@@ -90,9 +90,7 @@ def make_lead_castle(castle: AttrsDict) -> geant4.LogicalVolume:
             ],
             reg,
         )
-        return geant4.LogicalVolume(
-            solid, get_material("lead", reg), "Lead_castle", reg
-        )
+        return geant4.LogicalVolume(solid, mats.metal_lead, "Lead_castle", reg)
 
     # GERDA-era castle: the top block is separated from the base by the copper plate
     cu_height = castle.copper_plate.height_in_mm
@@ -117,14 +115,12 @@ def make_lead_castle(castle: AttrsDict) -> geant4.LogicalVolume:
         ],
         reg,
     )
-    castle_lv = geant4.LogicalVolume(
-        solid, get_material("lead", reg), "Lead_castle", reg
-    )
+    castle_lv = geant4.LogicalVolume(solid, mats.metal_lead, "Lead_castle", reg)
     # FIXME: the copper plate lies in the gap between base and top, i.e.
     # outside of its mother volume
     plate_lv = geant4.LogicalVolume(
         box("copper_plate", castle.copper_plate, reg),
-        get_material("copper", reg),
+        mats.metal_copper,
         "Copper_plate",
         reg,
     )
