@@ -19,13 +19,14 @@ from .materials import HadesMaterialRegistry
 from .metadata import (
     PublicHadesMetadataProxy,
     PublicLegendMetadataProxy,
+    measurement_table,
     merge_configs,
     parse_measurement,
     select_run,
 )
 from .plot import get_profile
 from .solids import place
-from .sources import place_source
+from .sources import place_source, scanning_axis_in_mm
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +73,10 @@ def construct(
       except for the runs listed in ``hardware/setup/table_exceptions``. The
       lead castle of the table is taken at ``run_start_time`` (format
       ``YYMMDDTHHMMSS``), or for the current setup if it is missing.
-      Without ``source_position``, no source is built.
+      Without ``source_position``, no source is built. For top scans on the
+      scanning table, ``r_in_mm`` is the arm position and the cryostat axis is
+      taken from the ``am_HS1_top_dlt`` runs of ``campaign`` (see
+      :func:`.sources.scanning_axis_in_mm`).
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
       legend-metadata. Not possible with ``run_key``.
@@ -192,22 +196,35 @@ def construct(
     place(cryostat_lv, lab_lv, reg)
     profiles["cryo"] = get_profile(cryostat_lv.solid) | {"offset": 0}
 
-    if source_position is not None:
-        place_source(
-            hmeta.hardware, source_type, position, source_position, lab_lv, reg, mats
-        )
-
-    # the measurement table is given by the FlashCam card, except for the runs
-    # listed in hardware/setup/table_exceptions
     setup = hmeta.hardware.setup
-    card = config.daq_settings.flashcam.card_interface
-    tables = {"efb1": "table1", "efb2": "table2", "efb3": "scanning"}
-    if card not in tables:
-        msg = f"unknown card interface {card!r}, expected one of {list(tables)}"
-        raise ValueError(msg)
-    table = setup.table_exceptions.get(hpge_name, {}).get(
-        config.measurement, tables[card]
-    )
+    table = measurement_table(setup, config)
+
+    if source_position is not None:
+        # on the scanning table, r of top scans is the position of the arm
+        axis_in_mm = 0.0
+        if table == "scanning" and position == "top":
+            axis_in_mm = scanning_axis_in_mm(
+                hmeta.hardware, hpge_name, config.get("campaign")
+            )
+        elif table == "scanning":
+            msg = (
+                "lateral scans on the scanning table are not implemented: r (gap "
+                "between collimator and endcap side) is taken as the distance from "
+                "the cryostat axis and z (arm position) as the depth below the "
+                "cryostat top"
+            )
+            log.warning(msg)
+
+        place_source(
+            hmeta.hardware,
+            source_type,
+            position,
+            source_position,
+            lab_lv,
+            reg,
+            mats,
+            axis_in_mm=axis_in_mm,
+        )
 
     # the static tables have a lead castle standing on the bottom plate
     if table != "scanning":
