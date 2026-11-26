@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-import pytest
 from pyg4ometry import geant4
 
-from pygeomhades import materials
+from pygeomhades.materials import HadesMaterialRegistry
 
 
-@pytest.mark.parametrize("key", list(materials._MATERIALS))
-def test_get_material(key):
+def test_hades_registry():
     reg = geant4.Registry()
-    mat = materials.get_material(key, reg)
-    assert isinstance(mat, geant4.Material)
-    assert materials.get_material(key, reg) is mat
+    mats = HadesMaterialRegistry(reg)
 
-
-def test_get_predefined_material():
-    reg = geant4.Registry()
-    assert materials.get_material("G4_Pb", reg).name == "G4_Pb"
+    assert isinstance(mats.th_source_epoxy, geant4.Material)
+    assert mats.th_source_epoxy is mats.th_source_epoxy
+    # no optical properties
+    assert mats.pmma.properties == {}

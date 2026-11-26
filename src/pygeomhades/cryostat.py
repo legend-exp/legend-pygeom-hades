@@ -6,7 +6,7 @@ import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from .materials import get_material
+from .materials import HadesMaterialRegistry
 from .solids import polycone
 
 
@@ -44,6 +44,7 @@ def make_cryostat(cryostat: AttrsDict) -> geant4.LogicalVolume:
     z = 0 is the cryostat top.
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
     r_out = cryostat.width_in_mm / 2
     r_in = r_out - cryostat.side_thickness_in_mm
     start = cryostat.top_thickness_in_mm
@@ -61,9 +62,7 @@ def make_cryostat(cryostat: AttrsDict) -> geant4.LogicalVolume:
         ],
         reg,
     )
-    return geant4.LogicalVolume(
-        solid, get_material("en_aw_2011t8", reg), "Cryostat", reg
-    )
+    return geant4.LogicalVolume(solid, mats.metal_aluminium_2011T8, "Cryostat", reg)
 
 
 def make_wrap(wrap: AttrsDict) -> geant4.LogicalVolume:
@@ -79,6 +78,7 @@ def make_wrap(wrap: AttrsDict) -> geant4.LogicalVolume:
         the produced PhysicalVolume to get a sane registry.
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
     r_out = wrap.outer.radius_in_mm
     r_in = wrap.inner.radius_in_mm
     height = wrap.outer.height_in_mm
@@ -89,7 +89,7 @@ def make_wrap(wrap: AttrsDict) -> geant4.LogicalVolume:
         [(0, 0, r_out), (top, 0, r_out), (top, r_in, r_out), (height, r_in, r_out)],
         reg,
     )
-    return geant4.LogicalVolume(solid, get_material("hd1000", reg), "Wrap", reg)
+    return geant4.LogicalVolume(solid, mats.hdpe, "Wrap", reg)
 
 
 def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
@@ -104,6 +104,7 @@ def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
         production order 6) are built without rings and lip.
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
     cyl = holder.cylinder
     r_in = cyl.inner.radius_in_mm
     r_out = cyl.outer.radius_in_mm
@@ -168,4 +169,4 @@ def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
         raise NotImplementedError(msg)
 
     solid = polycone("holder", planes, reg)
-    return geant4.LogicalVolume(solid, get_material("en_aw_2011t8", reg), "Holder", reg)
+    return geant4.LogicalVolume(solid, mats.metal_aluminium_2011T8, "Holder", reg)

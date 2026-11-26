@@ -10,7 +10,7 @@ import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from .materials import get_material
+from .materials import HadesMaterialRegistry
 from .solids import box, place, polycone, tube
 
 log = logging.getLogger(__name__)
@@ -31,9 +31,10 @@ def make_source(
         The measurement position (``top`` or ``lat``).
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
 
     def lv(solid, material, name):
-        return geant4.LogicalVolume(solid, get_material(material, reg), name, reg)
+        return geant4.LogicalVolume(solid, material, name, reg)
 
     def active(material):
         return lv(
@@ -47,10 +48,10 @@ def make_source(
         # channel above it
         col = source.collimator
         cap_height = source.capsule.height_in_mm
-        src = active("quartz")
+        src = active(mats.silica)
         capsule = lv(
             tube("source_capsule", source.capsule.width_in_mm / 2, cap_height, reg),
-            "steel",
+            mats.metal_steel,
             "Source_Encapsulated",
         )
         place(
@@ -66,10 +67,10 @@ def make_source(
                 col.beam_height_in_mm,
                 reg,
             ),
-            "air",
+            mats.air,
             "Collimator_Beam",
         )
-        outer = lv(box("collimator", col, reg), "G4_Cu", "Source_Collimated")
+        outer = lv(box("collimator", col, reg), mats.metal_copper, "Source_Collimated")
         place(beam, outer, reg, z=(col.height_in_mm - col.beam_height_in_mm) / 2)
         place(
             capsule,
@@ -79,10 +80,10 @@ def make_source(
         )
 
     elif source_type == "am_HS6":
-        src = active("acrylic")
+        src = active(mats.pmma)
         outer = lv(
             box("source_capsule", source.capsule, reg),
-            "acrylic",
+            mats.pmma,
             "Source_Encapsulated",
         )
         place(src, outer, reg)
@@ -90,7 +91,7 @@ def make_source(
     elif source_type in ["ba_HS4", "co_HS5"]:
         # source on a foil, surrounded by an aluminium ring
         ring = source.al_ring
-        src = active("hd1000")
+        src = active(mats.hdpe)
         foil = lv(
             tube(
                 "source_foil",
@@ -98,7 +99,7 @@ def make_source(
                 source.foil.height_in_mm,
                 reg,
             ),
-            "hd1000",
+            mats.hdpe,
             "Source_foil",
         )
         place(src, foil, reg)
@@ -110,12 +111,12 @@ def make_source(
                 reg,
                 r_min=ring.width_min_in_mm / 2,
             ),
-            "aluminium",
+            mats.metal_aluminium,
             "Source_Alring",
         )
         outer = lv(
             tube("source_vacuum", ring.width_max_in_mm / 2, ring.height_in_mm, reg),
-            "vacuum",
+            mats.vacuum,
             "Source_Encapsulated",
         )
         place(foil, outer, reg)
@@ -127,7 +128,7 @@ def make_source(
         cu = source.copper
         cu_all_height = cu.height_in_mm + cu.bottom_height_in_mm
         cap_height = source.capsule.height_in_mm
-        src = active("quartz")
+        src = active(mats.silica)
         epoxy = lv(
             tube(
                 "source_epoxy",
@@ -135,12 +136,12 @@ def make_source(
                 source.epoxy.height_in_mm,
                 reg,
             ),
-            "epoxy",
+            mats.th_source_epoxy,
             "Source_Epoxy",
         )
         capsule = lv(
             tube("source_capsule", source.capsule.width_in_mm / 2, cap_height, reg),
-            "steel",
+            mats.metal_steel,
             "Source_Encapsulated",
         )
         place(src, capsule, reg)
@@ -154,7 +155,7 @@ def make_source(
                 ],
                 reg,
             ),
-            "air",
+            mats.air,
             "CuSource_Holder_Cavity",
         )
         place(
@@ -174,7 +175,7 @@ def make_source(
                 ],
                 reg,
             ),
-            "copper",
+            mats.metal_copper,
             "CuSource_Holder",
         )
         place(cavity, outer, reg)
@@ -192,6 +193,7 @@ def make_th_plates(plates: AttrsDict) -> geant4.LogicalVolume:
     `plates` is the ``plates`` block of ``hardware/sources/th_HS2``.
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
     solid = tube(
         "source_plates",
         plates.width_in_mm / 2,
@@ -199,7 +201,7 @@ def make_th_plates(plates: AttrsDict) -> geant4.LogicalVolume:
         reg,
         r_min=plates.cavity_width_in_mm / 2,
     )
-    return geant4.LogicalVolume(solid, get_material("G4_Pb", reg), "Source_Plates", reg)
+    return geant4.LogicalVolume(solid, mats.metal_lead, "Source_Plates", reg)
 
 
 def make_source_holder(
@@ -220,6 +222,7 @@ def make_source_holder(
         The z position of the source from the cryostat top, in mm.
     """
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
     r_out = source_holder.outer_width_in_mm / 2
     r_in = source_holder.inner_width_in_mm / 2
 
@@ -242,9 +245,7 @@ def make_source_holder(
             [[np.pi / 2, 0, 0], [0, (r_in + r_out) / 2, 0]],
             reg,
         )
-        return geant4.LogicalVolume(
-            solid, get_material("acrylic", reg), "Source_Holder", reg
-        )
+        return geant4.LogicalVolume(solid, mats.pmma, "Source_Holder", reg)
 
     # the pocket in the top plate extends down to the source position
     z_cryo = source_z + source_holder.top_plate_height_in_mm / 2
@@ -320,9 +321,7 @@ def make_source_holder(
             reg,
         )
 
-    return geant4.LogicalVolume(
-        solid, get_material("acrylic", reg), "Source_Holder", reg
-    )
+    return geant4.LogicalVolume(solid, mats.pmma, "Source_Holder", reg)
 
 
 def place_source(
