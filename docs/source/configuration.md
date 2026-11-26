@@ -17,9 +17,22 @@ source_position: # the source position, no source is built without it
 ```
 
 The run configurations in `hardware/configuration` of `hades-metadata` have this
-format (with additional fields) and can be used directly. Each of these files
-holds all runs of one measurement, keyed by run name. On the command line,
-select the run with `--run`:
+format (with additional fields) and can be used directly. They are stored as
+`<detector>/<campaign>/<measurement>.yaml`, and each file holds all runs of one
+measurement, keyed by run name. On the command line, select a run by these keys:
+
+```console
+$ legend-pygeom-hades --detector V07302A --campaign c1 \
+    --measurement am_HS1_top_dlt --run run0001 hades.gdml
+```
+
+A key can be left out if it has only one choice. Otherwise the program stops and
+lists the available choices, so leaving out keys also shows what is in the
+metadata. This lookup reads the private `hades-metadata` and does not work with
+`--public-geom`.
+
+A run configuration file can also be given directly with `--config`. For a file
+with several runs, select one with `--run`:
 
 ```console
 $ legend-pygeom-hades --run run0001 \

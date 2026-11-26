@@ -4,6 +4,7 @@ import argparse
 import logging
 
 from dbetto import AttrsDict, utils
+from legendmeta import HadesMetadata
 from pyg4ometry import config as meshconfig
 from pygeomtools import geometry, write_pygeom
 
@@ -33,18 +34,8 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
     if (args.visualize and vis_scene.get("fine_mesh", True)) or args.check_overlaps:
         meshconfig.setGlobalMeshSliceAndStack(100)
 
-    config = AttrsDict(utils.load_dict(args.config))
-    if args.run is not None:
-        if args.run not in config:
-            msg = f"run {args.run} not found in {args.config}, available: {', '.join(config)}"
-            raise ValueError(msg)
-        config = config[args.run]
-    elif "detector" not in config:
-        msg = f"{args.config} has no 'detector' field, select one of its runs with --run: {', '.join(config)}"
-        raise ValueError(msg)
-
     registry = core.construct(
-        config,
+        _select_config(args),
         public_geometry=args.public_geom,
         plot_profiles=args.plot_profile,
     )
@@ -67,6 +58,47 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
         from pygeomtools import viewer
 
         viewer.visualize(registry, vis_scene)
+
+
+def _select_config(args: argparse.Namespace) -> AttrsDict:
+    """Return the configuration of the run selected on the command line."""
+    if args.config is not None:
+        config = AttrsDict(utils.load_dict(args.config))
+        if args.run is None and "detector" in config:
+            return config
+        return config[_choose(config, "run", args.run)]
+
+    path = HadesMetadata(lazy=True).__path__ / "hardware" / "configuration"
+    for level in ("detector", "campaign"):
+        dirs = [p.name for p in path.iterdir() if p.is_dir()]
+        path /= _choose(dirs, level, getattr(args, level))
+
+    files = {p.stem: p for p in path.iterdir() if p.suffix in (".yaml", ".json")}
+    runs = AttrsDict(
+        utils.load_dict(str(files[_choose(files, "measurement", args.measurement)]))
+    )
+    return runs[_choose(runs, "run", args.run)]
+
+
+def _choose(options, level: str, value: str | None) -> str:
+    """Return the selected option, or the only one if none is selected."""
+    options = sorted(options)
+    if value is not None and value in options:
+        return value
+    if value is None and len(options) == 1:
+        log.info("selected %s %s", level, options[0])
+        return options[0]
+
+    listed = ", ".join(options)
+    if len(options) > 10:
+        listed = (
+            f"{', '.join(options[:3])}, ..., {options[-1]} ({len(options)} {level}s)"
+        )
+    if value is None:
+        msg = f"select a {level} with --{level}: {listed}"
+    else:
+        msg = f"{level} {value} not found, available: {listed}"
+    raise ValueError(msg)
 
 
 def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -132,15 +164,29 @@ def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="""Create a geometry from public testdata only.""",
     )
 
-    geom_opts.add_argument(
+    source = geom_opts.add_mutually_exclusive_group(required=True)
+    source.add_argument(
         "--config",
-        required=True,
-        help="""Path to the configuration file.""",
+        help="""Path to a run configuration file (one run, or several runs keyed
+        by name).""",
+    )
+    source.add_argument(
+        "--detector",
+        help="""Detector name. Selects the run configuration from hades-metadata
+        (hardware/configuration).""",
+    )
+    geom_opts.add_argument(
+        "--campaign",
+        help="""Campaign (e.g. c1). Optional if the detector has only one.""",
+    )
+    geom_opts.add_argument(
+        "--measurement",
+        help="""Measurement name (e.g. am_HS1_top_dlt). Optional if there is only
+        one.""",
     )
     geom_opts.add_argument(
         "--run",
-        help="""Run to select from a configuration file that holds several runs
-        (e.g. a hades-metadata measurement file).""",
+        help="""Run name (e.g. run0002). Optional if there is only one.""",
     )
 
     parser.add_argument(
@@ -156,5 +202,12 @@ def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.visualize or args.plot_profile or args.print_volumes or args.check_overlaps
     ):
         parser.error("no output file, visualization or other action specified")
+
+    if args.config is not None and (args.campaign or args.measurement):
+        parser.error("--campaign and --measurement need --detector, not --config")
+    if args.detector is not None and args.public_geom:
+        parser.error(
+            "--detector needs the private hades-metadata, use --config with --public-geom"
+        )
 
     return args
