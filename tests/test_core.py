@@ -236,3 +236,26 @@ def test_run_key_public_geometry():
             AttrsDict({"run_key": "V13049A-c1-th_HS2_top_psa-run0001"}),
             public_geometry=True,
         )
+
+
+@pytest.mark.parametrize(
+    ("card", "x"),
+    [
+        ("efb1", 20.0),  # static table: r is the distance from the cryostat axis
+        ("efb3", -46.0),  # scanning table: r is the arm position, axis at 66 mm
+    ],
+)
+def test_am_hs1_top_source_x(card: str, x: float):
+    config = AttrsDict(
+        {
+            "detector": "V07302A",
+            "campaign": "c1",
+            "measurement": "am_HS1_top_dlt",
+            "daq_settings": {"flashcam": {"card_interface": card}},
+            "source_position": {"phi_in_deg": 0.0, "r_in_mm": 20.0, "z_in_mm": 5.0},
+        }
+    )
+    reg = construct(config, public_geometry=public_geom)
+    pos = reg.physicalVolumeDict["source_collimator_copper"].position.eval()
+    assert pos[0] == pytest.approx(x)
+    assert pos[1] == pytest.approx(0)

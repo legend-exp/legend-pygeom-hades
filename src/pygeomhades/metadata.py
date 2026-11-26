@@ -88,6 +88,22 @@ def parse_measurement(measurement: str) -> AttrsDict:
     )
 
 
+def measurement_table(setup: AttrsDict, run: AttrsDict) -> str:
+    """Return the measurement table (``table1``, ``table2`` or ``scanning``) of a run.
+
+    The table is given by the FlashCam card of the run, except for the runs listed
+    in ``hardware/setup/table_exceptions``.
+    """
+    card = run.daq_settings.flashcam.card_interface
+    tables = {"efb1": "table1", "efb2": "table2", "efb3": "scanning"}
+    if card not in tables:
+        msg = f"unknown card interface {card!r}, expected one of {list(tables)}"
+        raise ValueError(msg)
+    return setup.table_exceptions.get(run.detector, {}).get(
+        run.measurement, tables[card]
+    )
+
+
 def merge_configs(diode_meta: AttrsDict, hades_meta: Mapping) -> AttrsDict:
     """Return a copy of `diode_meta` with `hades_meta` added as ``hades``.
 

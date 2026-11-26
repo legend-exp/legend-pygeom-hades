@@ -11,6 +11,7 @@ from dbetto import AttrsDict
 from pyg4ometry import geant4
 
 from .materials import HadesMaterialRegistry
+from .metadata import measurement_table
 from .solids import box, place, polycone, tube
 
 log = logging.getLogger(__name__)
@@ -348,11 +349,13 @@ def place_source(
     mother_lv: geant4.LogicalVolume,
     registry: geant4.Registry,
     materials: HadesMaterialRegistry,
+    axis_in_mm: float = 0.0,
 ) -> None:
     """Build the source of a run with its source holder and place them in `mother_lv`.
 
     `hardware` is the ``hardware`` folder of hades-metadata. The origin of
-    `mother_lv` is at the cryostat top, with z pointing down.
+    `mother_lv` is at the cryostat top, with z pointing down. `axis_in_mm` is the
+    value of r on the cryostat axis (see :func:`source_xyz`).
     """
     if source_type not in ["am_HS1", "th_HS2"] and position == "lat":
         msg = f"lateral position not implemented for source type {source_type}"
@@ -365,7 +368,7 @@ def place_source(
     source_lv = make_source(source_type, source, position, registry, materials)
 
     # source position in the detector frame
-    x, y, z = source_xyz(source_position, source_type)
+    x, y, z = source_xyz(source_position, axis_in_mm)
     source_y = y
     lateral_th = source_type == "th_HS2" and position == "lat"
 
@@ -409,31 +412,63 @@ def place_source(
         place(source_holder_lv, mother_lv, registry, z=holder_z)
 
 
+def scanning_axis_in_mm(
+    hardware: AttrsDict, detector: str, campaign: str | None
+) -> float:
+    """Return the arm position r (in mm) of the cryostat axis on the scanning table.
+
+    The ``am_HS1_top_dlt`` runs of the detector campaign on the scanning table
+    are assumed to include one with the source above the detector centre: the
+    middle one of three arm positions, or else the one closest to 66 mm. Without
+    such runs, the axis is assumed at 66 mm.
+    """
+    nominal = 66.0
+    try:
+        runs = hardware.configuration[detector][campaign].am_HS1_top_dlt
+    except (AttributeError, KeyError, TypeError, FileNotFoundError):
+        runs = {}
+
+    positions = sorted(
+        {
+            run.source_position.r_in_mm
+            for run in runs.values()
+            if measurement_table(hardware.setup, run) == "scanning"
+        }
+    )
+
+    if len(positions) == 3:
+        return positions[1]
+
+    if not positions:
+        axis = nominal
+        msg = (
+            f"no am_HS1_top_dlt runs of {detector} (campaign {campaign}) on the "
+            f"scanning table, assuming the cryostat axis at r = {axis} mm"
+        )
+    else:
+        axis = min(positions, key=lambda r: abs(r - nominal))
+        msg = (
+            f"am_HS1_top_dlt runs of {detector} (campaign {campaign}) at "
+            f"{len(positions)} arm positions instead of 3, assuming the cryostat "
+            f"axis at the one closest to {nominal} mm: r = {axis} mm"
+        )
+    log.warning(msg)
+    return axis
+
+
 def source_xyz(
-    source_position: AttrsDict, source_type: str
+    source_position: AttrsDict, axis_in_mm: float = 0.0
 ) -> tuple[float, float, float]:
     """Convert the ``source_position`` (r, phi, z) of a run to x, y, z in mm.
 
-    For ``am_HS1`` (scanning table), r is a motor position and the cryostat axis
-    is assumed at r = 66 mm. This offset is not well known.
+    `axis_in_mm` is the value of r on the cryostat axis. A negative r measured
+    from the axis puts the source on the opposite side (phi + 180 deg).
     """
-    r = source_position.r_in_mm
-    phi = source_position.phi_in_deg
+    r = source_position.r_in_mm - axis_in_mm
+    phi = math.radians(source_position.phi_in_deg)
 
-    if source_type == "am_HS1" and r != 0:
-        r += -66  # update this condition
-        if r < 0:
-            phi += 180
-            r = abs(r)
+    if r < 0:
+        r = -r
+        phi += math.pi
 
-        msg = (
-            "Translation to detector from for am_HS1 and "
-            "r!=0 is uncertain. Proceed with caution."
-        )
-        log.warning(msg)
-
-    phi = phi * math.pi / 180.0
-    x = r * math.cos(phi)
-    y = -r * math.sin(phi)
-
-    return x, y, source_position.z_in_mm
+    return r * math.cos(phi), -r * math.sin(phi), source_position.z_in_mm
