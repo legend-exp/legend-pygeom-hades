@@ -243,7 +243,7 @@ def make_source_holder(
             reg,
         )
         return geant4.LogicalVolume(
-            solid, get_material("acrylic_source_holder", reg), "Source_Holder", reg
+            solid, get_material("acrylic", reg), "Source_Holder", reg
         )
 
     # the pocket in the top plate extends down to the source position
@@ -321,7 +321,7 @@ def make_source_holder(
         )
 
     return geant4.LogicalVolume(
-        solid, get_material("acrylic_source_holder", reg), "Source_Holder", reg
+        solid, get_material("acrylic", reg), "Source_Holder", reg
     )
 
 

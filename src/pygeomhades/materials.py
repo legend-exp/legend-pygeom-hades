@@ -49,8 +49,6 @@ _MATERIALS = {
         {"fractions": {"C": 0.000124, "N": 0.755268, "O": 0.231781, "Ar": 0.012827}},
     ),
     "acrylic": ("Acrylic", 1.15, {"natoms": {"C": 5, "H": 8, "O": 2}}),
-    # FIXME: acrylic (PMMA) is C5H8O2
-    "acrylic_source_holder": ("Acrylic", 1.15, {"natoms": {"C": 5, "H": 8, "O": 8}}),
     "epoxy": ("epoxy_mod", 1.129, {"natoms": {"C": 41, "H": 49, "O": 7, "N": 3}}),
     "vacuum": ("Galactic", 1e-25, {"fractions": {"H": 1}}),
 }
