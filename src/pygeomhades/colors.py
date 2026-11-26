@@ -36,12 +36,12 @@ MATERIAL_COLORS = {
 #: name. It replaces the opacity of the material, so that the inner parts stay
 #: visible.
 VOLUME_OPACITY = {
-    "Lead_castle": 0.05,
-    "Bottom_plate": 0.05,
-    "Cryostat": 0.5,
-    "Holder": 0.8,
-    "CuSource_Holder": 0.5,
-    "Source_Collimated": 0.5,
+    "castle_lead": 0.05,
+    "castle_bottom_plate_aluminium": 0.05,
+    "cryostat_wall_aluminium": 0.5,
+    "hpge_holder_aluminium": 0.8,
+    "source_holder_copper": 0.5,
+    "source_collimator_copper": 0.5,
 }
 
 

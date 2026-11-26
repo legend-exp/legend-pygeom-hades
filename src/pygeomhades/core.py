@@ -108,27 +108,27 @@ def construct(
 
     # Create the world volume
     world = geant4.solid.Box("world", 20, 20, 20, reg, "m")
-    world_lv = geant4.LogicalVolume(world, "G4_Galactic", "world_lv", reg)
+    world_lv = geant4.LogicalVolume(world, "G4_Galactic", "world", reg)
     reg.setWorld(world_lv)
 
     # place a box rotated 180 deg so the geometry is not upside down
-    lab = geant4.solid.Box("lab", 18, 18, 18, reg, "m")
-    lab_lv = geant4.LogicalVolume(lab, "G4_AIR", "lab_lv", reg)
+    lab = geant4.solid.Box("lab_air", 18, 18, 18, reg, "m")
+    lab_lv = geant4.LogicalVolume(lab, "G4_AIR", "lab_air", reg)
 
-    place(lab_lv, world_lv, reg, name="lab", rotation=(0, np.pi, 0))
+    place(lab_lv, world_lv, reg, rotation=(0, np.pi, 0))
 
     cavity_lv = make_vacuum_cavity(cryostat, reg)
 
     # save the info for plotting
     profiles["cavity"] = get_profile(cavity_lv.solid) | {"offset": top_wall}
 
-    place(cavity_lv, lab_lv, reg, name="cavity_pv", z=top_wall)
+    place(cavity_lv, lab_lv, reg, z=top_wall)
 
     # construct the wrap
     wrap_lv = make_wrap(hpge.hades.wrap.geometry, reg, mats)
 
     z = hpge.hades.wrap.position_in_mm - top_wall
-    place(wrap_lv, cavity_lv, reg, name="wrap_pv", z=z)
+    place(wrap_lv, cavity_lv, reg, z=z)
 
     profiles["wrap"] = get_profile(wrap_lv.solid) | {"offset": z + top_wall}
 
@@ -136,14 +136,12 @@ def construct(
     holder_lv = make_holder(hpge.hades.holder.geometry, hpge.type, reg, mats)
 
     z = hpge.hades.holder.position_in_mm - top_wall
-    place(holder_lv, cavity_lv, reg, name="holder_pv", z=z)
+    place(holder_lv, cavity_lv, reg, z=z)
 
     profiles["holder"] = get_profile(holder_lv.solid) | {"offset": z + top_wall}
 
     # construct the hpge, for now do not allow cylindrical asymmetry
-    detector_lv = make_hpge(
-        hpge, name=hpge.name, registry=reg, allow_cylindrical_asymmetry=False
-    )
+    detector_lv = make_hpge(hpge, registry=reg, allow_cylindrical_asymmetry=False)
 
     # an extra offset is needed to account for the different reference point
     # this is the top of the crystal for the holder and wrap, but it's the p+
@@ -152,7 +150,7 @@ def construct(
     z = hpge.hades.detector.position_in_mm - top_wall + extra_offset
 
     # we need to flip the detector axes when placing it in the cryostat
-    pv = place(detector_lv, cavity_lv, reg, name=hpge.name, z=z, rotation=(0, np.pi, 0))
+    pv = place(detector_lv, cavity_lv, reg, z=z, rotation=(0, np.pi, 0))
 
     profiles["detector"] = get_profile(detector_lv.solid, flip=True) | {
         "offset": z + top_wall
@@ -169,7 +167,7 @@ def construct(
     # construct the cryostat
     cryostat_lv = make_cryostat(cryostat, reg, mats)
 
-    place(cryostat_lv, lab_lv, reg, name="cryo_pv")
+    place(cryostat_lv, lab_lv, reg)
     profiles["cryo"] = get_profile(cryostat_lv.solid) | {"offset": 0}
 
     if source_position is not None:
@@ -199,7 +197,7 @@ def construct(
         plate_lv = make_bottom_plate(plate, reg, mats)
 
         z = plate_depth_in_mm + plate.height_in_mm / 2
-        place(plate_lv, lab_lv, reg, name="plate_pv", z=z)
+        place(plate_lv, lab_lv, reg, z=z)
 
         # the castle of each table depends on the date of the run (validity in
         # hardware/setup/table_castles); without a date, the current setup
@@ -212,7 +210,7 @@ def construct(
         castle_lv = make_lead_castle(castle, reg, mats)
 
         z = plate_depth_in_mm - castle.base.height_in_mm / 2
-        place(castle_lv, lab_lv, reg, name="castle_pv", z=z)
+        place(castle_lv, lab_lv, reg, z=z)
 
     colors.set_colors(reg)
 
