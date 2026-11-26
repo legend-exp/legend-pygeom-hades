@@ -21,6 +21,7 @@ from .metadata import (
     PublicLegendMetadataProxy,
     merge_configs,
     parse_measurement,
+    select_run,
 )
 from .plot import get_profile
 from .solids import place
@@ -42,7 +43,17 @@ def construct(
     Parameters
     ----------
     config
-      configuration dictionary defining the geometry, e.g.,
+      configuration dictionary defining the geometry. It can name a run of
+      hades-metadata (``hardware/configuration``) with ``run_key``, in the
+      format ``<detector>-<campaign>-<measurement>-<run>``:
+
+      .. code-block:: yaml
+
+          run_key: V07302A-c1-am_HS1_top_dlt-run0001
+
+      The other top-level keys of `config` then replace the fields of that run
+      (e.g. ``source_position``). Otherwise, `config` gives the run fields
+      directly, e.g.,
 
       .. code-block:: yaml
 
@@ -64,14 +75,10 @@ def construct(
       Without ``source_position``, no source is built.
     public_geometry
       if true, uses the public geometry metadata instead of the LEGEND-internal
-      legend-metadata.
+      legend-metadata. Not possible with ``run_key``.
     plot_profiles
         if true, plots the profiles of the volumes in the geometry using matplotlib.
     """
-
-    profiles = {}
-    hpge_name = config.detector
-    source_position = config.get("source_position")
 
     lmeta = None
     hmeta = None
@@ -90,6 +97,21 @@ def construct(
         log.warning("CONSTRUCTING GEOMETRY FROM PUBLIC DATA ONLY")
         lmeta = PublicLegendMetadataProxy()
         hmeta = PublicHadesMetadataProxy()
+
+    if "run_key" in config:
+        if public_geometry:
+            msg = "run_key needs the private hades-metadata, it does not work with the public geometry"
+            raise ValueError(msg)
+        keys = config.run_key.split("-")
+        if len(keys) != 4:
+            msg = f"run_key {config.run_key!r} is not in the format <detector>-<campaign>-<measurement>-<run>"
+            raise ValueError(msg)
+        overrides = {k: v for k, v in config.items() if k != "run_key"}
+        config = AttrsDict(select_run(hmeta.__path__, *keys) | overrides)
+
+    profiles = {}
+    hpge_name = config.detector
+    source_position = config.get("source_position")
 
     measurement = parse_measurement(config.measurement)
     position = measurement.position

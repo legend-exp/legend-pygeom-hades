@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from dbetto import utils
@@ -104,37 +103,6 @@ def test_bad_arguments(argv):
 
 
 @pytest.fixture
-def meta_dir(tmp_path, monkeypatch):
-    config = utils.load_dict(CONFIG)
-    conf_dir = tmp_path / "hardware" / "configuration"
-    for meas_path, n_runs in [
-        ("V13049A/c1/th_HS2_top_psa", 2),
-        ("V13049A/c1/am_HS1_top_dlt", 1),
-        ("V13049A/c2/th_HS2_top_psa", 12),
-        ("B00000B/c1/th_HS2_top_psa", 1),
-    ]:
-        det, campaign, meas = meas_path.split("/")
-        runs = {
-            f"run{i:04d}": {
-                **config,
-                "detector": det,
-                "campaign": campaign,
-                "measurement": meas,
-                "run": f"run{i:04d}",
-            }
-            for i in range(1, n_runs + 1)
-        }
-        path = conf_dir / f"{meas_path}.yaml"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        utils.write_dict(runs, str(path))
-
-    monkeypatch.setattr(
-        cli, "HadesMetadata", lambda lazy: SimpleNamespace(__path__=tmp_path)
-    )
-    return conf_dir
-
-
-@pytest.fixture
 def constructed(monkeypatch):
     configs = []
     monkeypatch.setattr(
@@ -197,3 +165,12 @@ def test_select_from_metadata(meta_dir, constructed):
 def test_select_errors(meta_dir, constructed, argv, error):
     with pytest.raises(ValueError, match=error):
         dump_gdml_cli([*argv, "out.gdml"])
+
+
+def test_config_with_run_key(private_meta, tmp_path):
+    config = tmp_path / "config.yaml"
+    utils.write_dict({"run_key": "V13049A-c1-th_HS2_top_psa-run0001"}, str(config))
+    out = tmp_path / "hades.gdml"
+    dump_gdml_cli(["--config", str(config), str(out)])
+
+    assert "source_active" in gdml.Reader(str(out)).getRegistry().physicalVolumeDict

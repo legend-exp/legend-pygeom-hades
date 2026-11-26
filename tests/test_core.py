@@ -201,3 +201,38 @@ def test_table_from_card(detector: str, card: str, castle: bool):
     )
     reg = construct(config, public_geometry=public_geom)
     assert ("castle_lead" in reg.physicalVolumeDict) == castle
+
+
+@pytest.mark.parametrize(
+    ("extra", "castle"),
+    [
+        ({}, True),
+        ({"daq_settings": {"flashcam": {"card_interface": "efb3"}}}, False),
+    ],
+)
+def test_run_key(private_meta, extra: dict, castle: bool):
+    config = AttrsDict({"run_key": "V13049A-c1-th_HS2_top_psa-run0002", **extra})
+    reg = construct(config)
+    assert "source_active" in reg.physicalVolumeDict
+    assert ("castle_lead" in reg.physicalVolumeDict) == castle
+
+
+@pytest.mark.parametrize(
+    ("run_key", "error"),
+    [
+        ("V13049A-c1-th_HS2_top_psa", "<detector>-<campaign>-<measurement>-<run>"),
+        ("V13049A-c1-th_HS2_top_psa-run0003", "run run0003 not found"),
+        ("V0-c1-th_HS2_top_psa-run0001", "detector V0 not found"),
+    ],
+)
+def test_run_key_errors(private_meta, run_key: str, error: str):
+    with pytest.raises(ValueError, match=error):
+        construct(AttrsDict({"run_key": run_key}))
+
+
+def test_run_key_public_geometry():
+    with pytest.raises(ValueError, match="private hades-metadata"):
+        construct(
+            AttrsDict({"run_key": "V13049A-c1-th_HS2_top_psa-run0001"}),
+            public_geometry=True,
+        )

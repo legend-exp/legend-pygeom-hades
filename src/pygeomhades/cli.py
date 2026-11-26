@@ -9,6 +9,7 @@ from pyg4ometry import config as meshconfig
 from pygeomtools import geometry, write_pygeom
 
 from . import _version, core
+from .metadata import _choose, select_run
 
 log = logging.getLogger(__name__)
 
@@ -64,41 +65,17 @@ def _select_config(args: argparse.Namespace) -> AttrsDict:
     """Return the configuration of the run selected on the command line."""
     if args.config is not None:
         config = AttrsDict(utils.load_dict(args.config))
-        if args.run is None and "detector" in config:
+        if args.run is None and ("detector" in config or "run_key" in config):
             return config
         return config[_choose(config, "run", args.run)]
 
-    path = HadesMetadata(lazy=True).__path__ / "hardware" / "configuration"
-    for level in ("detector", "campaign"):
-        dirs = [p.name for p in path.iterdir() if p.is_dir()]
-        path /= _choose(dirs, level, getattr(args, level))
-
-    files = {p.stem: p for p in path.iterdir() if p.suffix in (".yaml", ".json")}
-    runs = AttrsDict(
-        utils.load_dict(str(files[_choose(files, "measurement", args.measurement)]))
+    return select_run(
+        HadesMetadata(lazy=True).__path__,
+        args.detector,
+        args.campaign,
+        args.measurement,
+        args.run,
     )
-    return runs[_choose(runs, "run", args.run)]
-
-
-def _choose(options, level: str, value: str | None) -> str:
-    """Return the selected option, or the only one if none is selected."""
-    options = sorted(options)
-    if value is not None and value in options:
-        return value
-    if value is None and len(options) == 1:
-        log.info("selected %s %s", level, options[0])
-        return options[0]
-
-    listed = ", ".join(options)
-    if len(options) > 10:
-        listed = (
-            f"{', '.join(options[:3])}, ..., {options[-1]} ({len(options)} {level}s)"
-        )
-    if value is None:
-        msg = f"select a {level} with --{level}: {listed}"
-    else:
-        msg = f"{level} {value} not found, available: {listed}"
-    raise ValueError(msg)
 
 
 def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -167,8 +144,8 @@ def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
     source = geom_opts.add_mutually_exclusive_group(required=True)
     source.add_argument(
         "--config",
-        help="""Path to a run configuration file (one run, or several runs keyed
-        by name).""",
+        help="""Path to a run configuration file (one run, a run_key, or several
+        runs keyed by name).""",
     )
     source.add_argument(
         "--detector",
