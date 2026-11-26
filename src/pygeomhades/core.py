@@ -15,6 +15,7 @@ from pygeomhpges import make_hpge
 from . import colors, plot
 from .castle import make_bottom_plate, make_lead_castle
 from .cryostat import make_cryostat, make_holder, make_vacuum_cavity, make_wrap
+from .materials import HadesMaterialRegistry
 from .metadata import (
     PublicHadesMetadataProxy,
     PublicLegendMetadataProxy,
@@ -103,6 +104,7 @@ def construct(
     top_wall = cryostat.top_thickness_in_mm
 
     reg = geant4.Registry()
+    mats = HadesMaterialRegistry(reg)
 
     # Create the world volume
     world = geant4.solid.Box("world", 20, 20, 20, reg, "m")
@@ -123,20 +125,18 @@ def construct(
     place(cavity_lv, lab_lv, reg, name="cavity_pv", z=top_wall)
 
     # construct the wrap
-    wrap_lv = make_wrap(hpge.hades.wrap.geometry)
+    wrap_lv = make_wrap(hpge.hades.wrap.geometry, reg, mats)
 
     z = hpge.hades.wrap.position_in_mm - top_wall
-    pv = place(wrap_lv, cavity_lv, reg, name="wrap_pv", z=z)
+    place(wrap_lv, cavity_lv, reg, name="wrap_pv", z=z)
 
     profiles["wrap"] = get_profile(wrap_lv.solid) | {"offset": z + top_wall}
-    reg.addVolumeRecursive(pv)
 
     # construct the holder
-    holder_lv = make_holder(hpge.hades.holder.geometry, hpge.type)
+    holder_lv = make_holder(hpge.hades.holder.geometry, hpge.type, reg, mats)
 
     z = hpge.hades.holder.position_in_mm - top_wall
-    pv = place(holder_lv, cavity_lv, reg, name="holder_pv", z=z)
-    reg.addVolumeRecursive(pv)
+    place(holder_lv, cavity_lv, reg, name="holder_pv", z=z)
 
     profiles["holder"] = get_profile(holder_lv.solid) | {"offset": z + top_wall}
 
@@ -167,16 +167,14 @@ def construct(
         )
     )
     # construct the cryostat
-    cryostat_lv = make_cryostat(cryostat)
+    cryostat_lv = make_cryostat(cryostat, reg, mats)
 
-    pv = place(cryostat_lv, lab_lv, reg, name="cryo_pv")
+    place(cryostat_lv, lab_lv, reg, name="cryo_pv")
     profiles["cryo"] = get_profile(cryostat_lv.solid) | {"offset": 0}
-
-    reg.addVolumeRecursive(pv)
 
     if source_position is not None:
         place_source(
-            hmeta.hardware, source_type, position, source_position, lab_lv, reg
+            hmeta.hardware, source_type, position, source_position, lab_lv, reg, mats
         )
 
     # the measurement table is given by the FlashCam card, except for the runs
@@ -198,11 +196,10 @@ def construct(
         plate_depth_in_mm = 250.0
 
         plate = setup.bottom_plate
-        plate_lv = make_bottom_plate(plate)
+        plate_lv = make_bottom_plate(plate, reg, mats)
 
         z = plate_depth_in_mm + plate.height_in_mm / 2
-        pv = place(plate_lv, lab_lv, reg, name="plate_pv", z=z)
-        reg.addVolumeRecursive(pv)
+        place(plate_lv, lab_lv, reg, name="plate_pv", z=z)
 
         # the castle of each table depends on the date of the run (validity in
         # hardware/setup/table_castles); without a date, the current setup
@@ -212,11 +209,10 @@ def construct(
             else datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         )
         castle = setup.lead_castle[castles[table]]
-        castle_lv = make_lead_castle(castle)
+        castle_lv = make_lead_castle(castle, reg, mats)
 
         z = plate_depth_in_mm - castle.base.height_in_mm / 2
-        pv = place(castle_lv, lab_lv, reg, name="castle_pv", z=z)
-        reg.addVolumeRecursive(pv)
+        place(castle_lv, lab_lv, reg, name="castle_pv", z=z)
 
     colors.set_colors(reg)
 

@@ -5,6 +5,12 @@ from dbetto import AttrsDict
 from pyg4ometry import geant4
 
 from pygeomhades.cryostat import make_holder, make_vacuum_cavity, make_wrap
+from pygeomhades.materials import HadesMaterialRegistry
+
+
+def registries():
+    reg = geant4.Registry()
+    return reg, HadesMaterialRegistry(reg)
 
 
 def test_make_cavity():
@@ -37,7 +43,7 @@ def test_make_wrap():
         }
     )
 
-    wrap_lv = make_wrap(wrap)
+    wrap_lv = make_wrap(wrap, *registries())
 
     assert wrap_lv is not None
     assert isinstance(wrap_lv, geant4.LogicalVolume)
@@ -79,15 +85,15 @@ def test_make_holder():
     )
 
     # test with bege
-    lv = make_holder(holder, "bege")
+    lv = make_holder(holder, "bege", *registries())
     assert isinstance(lv, geant4.LogicalVolume)
 
-    lv = make_holder(holder, "icpc")
+    lv = make_holder(holder, "icpc", *registries())
     assert isinstance(lv, geant4.LogicalVolume)
 
     with pytest.raises(NotImplementedError):
-        make_holder(holder, "coax")
+        make_holder(holder, "coax", *registries())
 
     holder.pop("rings")  # remove rings for batch 6
-    lv = make_holder(holder, "icpc")
+    lv = make_holder(holder, "icpc", *registries())
     assert isinstance(lv, geant4.LogicalVolume)

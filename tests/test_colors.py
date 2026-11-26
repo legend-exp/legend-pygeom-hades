@@ -13,7 +13,7 @@ from pygeomhades.core import construct
 def test_set_colors(caplog):
     reg = geant4.Registry()
     volumes = {
-        "Cryostat": "metal_aluminium_2011T8_0",
+        "Cryostat": "metal_aluminium_2011T8",
         "V00000A": "EnrichedGermanium0.900",
         "Source_Alring": "metal_aluminium",
         "lab_lv": "G4_AIR",

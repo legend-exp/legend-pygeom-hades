@@ -8,7 +8,6 @@ volume, which :mod:`pygeomtools.viewer` reads. ``False`` hides the volume.
 from __future__ import annotations
 
 import logging
-import re
 
 from pyg4ometry import geant4
 
@@ -53,9 +52,7 @@ def set_colors(registry: geant4.Registry) -> None:
     color of the viewer.
     """
     for lv in registry.logicalVolumeDict.values():
-        # pyg4ometry appends "_0", "_1", ... to duplicate material names when
-        # merging registries
-        material = re.sub(r"_\d+$", "", lv.material.name)
+        material = lv.material.name
         if "Germanium" in material:
             material = "Germanium"
 
