@@ -3,6 +3,7 @@ from __future__ import annotations
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
+from pygeomhades.materials import HadesMaterialRegistry
 from pygeomhades.sources import make_th_plates, source_xyz
 
 
@@ -11,7 +12,8 @@ def test_make_th_plates():
         {"height_in_mm": 10.0, "width_in_mm": 50.0, "cavity_width_in_mm": 5.0}
     )
 
-    th_plates_lv = make_th_plates(plates)
+    reg = geant4.Registry()
+    th_plates_lv = make_th_plates(plates, reg, HadesMaterialRegistry(reg))
 
     assert isinstance(th_plates_lv, geant4.LogicalVolume)
 

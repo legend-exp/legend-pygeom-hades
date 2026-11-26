@@ -37,14 +37,14 @@ def make_vacuum_cavity(
     return geant4.LogicalVolume(vacuum_cavity, "G4_Galactic", "cavity_lv", registry)
 
 
-def make_cryostat(cryostat: AttrsDict) -> geant4.LogicalVolume:
+def make_cryostat(
+    cryostat: AttrsDict, registry: geant4.Registry, materials: HadesMaterialRegistry
+) -> geant4.LogicalVolume:
     """Create the cryostat, a closed cylinder with a vacuum cavity.
 
     `cryostat` is the ``cryostat`` block of ``hardware/cryostat/<detector>``.
     z = 0 is the cryostat top.
     """
-    reg = geant4.Registry()
-    mats = HadesMaterialRegistry(reg)
     r_out = cryostat.width_in_mm / 2
     r_in = r_out - cryostat.side_thickness_in_mm
     start = cryostat.top_thickness_in_mm
@@ -60,25 +60,21 @@ def make_cryostat(cryostat: AttrsDict) -> geant4.LogicalVolume:
             (end, 0, r_out),
             (cryostat.height_in_mm, 0, r_out),
         ],
-        reg,
+        registry,
     )
-    return geant4.LogicalVolume(solid, mats.metal_aluminium_2011T8, "Cryostat", reg)
+    return geant4.LogicalVolume(
+        solid, materials.metal_aluminium_2011T8, "Cryostat", registry
+    )
 
 
-def make_wrap(wrap: AttrsDict) -> geant4.LogicalVolume:
+def make_wrap(
+    wrap: AttrsDict, registry: geant4.Registry, materials: HadesMaterialRegistry
+) -> geant4.LogicalVolume:
     """Create the detector wrap (HD1000 polyethylene), a cup closed at z = 0.
 
     `wrap` is the ``wrap.geometry`` block of
     ``hardware/cryostat/<detector>``.
-
-    .. warning::
-
-        The returned logical volume belongs to its own registry,
-        it is necessary to call :func:`reg.addVolumeRecursive` on
-        the produced PhysicalVolume to get a sane registry.
     """
-    reg = geant4.Registry()
-    mats = HadesMaterialRegistry(reg)
     r_out = wrap.outer.radius_in_mm
     r_in = wrap.inner.radius_in_mm
     height = wrap.outer.height_in_mm
@@ -87,12 +83,17 @@ def make_wrap(wrap: AttrsDict) -> geant4.LogicalVolume:
     solid = polycone(
         "wrap",
         [(0, 0, r_out), (top, 0, r_out), (top, r_in, r_out), (height, r_in, r_out)],
-        reg,
+        registry,
     )
-    return geant4.LogicalVolume(solid, mats.hdpe, "Wrap", reg)
+    return geant4.LogicalVolume(solid, materials.hdpe, "Wrap", registry)
 
 
-def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
+def make_holder(
+    holder: AttrsDict,
+    det_type: str,
+    registry: geant4.Registry,
+    materials: HadesMaterialRegistry,
+) -> geant4.LogicalVolume:
     """Create the detector holder.
 
     Parameters
@@ -102,9 +103,9 @@ def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
     det_type
         Detector type (``icpc`` or ``bege``). ICPC holders without ``rings`` (e.g.
         production order 6) are built without rings and lip.
+    registry, materials
+        The registries of the volumes and of their materials.
     """
-    reg = geant4.Registry()
-    mats = HadesMaterialRegistry(reg)
     cyl = holder.cylinder
     r_in = cyl.inner.radius_in_mm
     r_out = cyl.outer.radius_in_mm
@@ -168,5 +169,7 @@ def make_holder(holder: AttrsDict, det_type: str) -> geant4.LogicalVolume:
         msg = "cannot construct geometry for coax or ppc"
         raise NotImplementedError(msg)
 
-    solid = polycone("holder", planes, reg)
-    return geant4.LogicalVolume(solid, mats.metal_aluminium_2011T8, "Holder", reg)
+    solid = polycone("holder", planes, registry)
+    return geant4.LogicalVolume(
+        solid, materials.metal_aluminium_2011T8, "Holder", registry
+    )
