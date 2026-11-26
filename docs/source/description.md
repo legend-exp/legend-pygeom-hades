@@ -13,15 +13,15 @@ A more detailed description can be found in
 
 ## Physical volumes
 
-- The HPGe detector physical volume is the name of the detector,
-- The active component of the source is named "Source".
+- The HPGe detector physical volume is the name of the detector.
+- The part of the source that holds the radioactive isotope is named
+  `source_active`.
 
 ::: {tip}
 
-In _remage_ the physical volume "Source" should usually be set as the volume for
-vertex confinement to simulate the calibration source.
-
-Other volume names can be found by inspecting the GDML file, but are not
-expected to be needed for simulations.
+In _remage_ the physical volume `source_active` should usually be set as the
+volume for vertex confinement to simulate the calibration source.
 
 :::
+
+All volume names are listed in {doc}`naming`.

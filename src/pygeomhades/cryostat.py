@@ -25,7 +25,7 @@ def make_vacuum_cavity(
         - cryostat.bottom_thickness_in_mm
     )
     vacuum_cavity = geant4.solid.GenericPolycone(
-        "vacuum_cavity",
+        "cryostat_vacuum",
         0.0,
         2.0 * np.pi,
         pR=[0.0, radius, radius, 0.0],
@@ -34,7 +34,9 @@ def make_vacuum_cavity(
         aunit="rad",
         registry=registry,
     )
-    return geant4.LogicalVolume(vacuum_cavity, "G4_Galactic", "cavity_lv", registry)
+    return geant4.LogicalVolume(
+        vacuum_cavity, "G4_Galactic", "cryostat_vacuum", registry
+    )
 
 
 def make_cryostat(
@@ -51,7 +53,7 @@ def make_cryostat(
     end = cryostat.height_in_mm - cryostat.bottom_thickness_in_mm
 
     solid = polycone(
-        "cryostat",
+        "cryostat_wall_aluminium",
         [
             (0, 0, r_out),
             (start, 0, r_out),
@@ -63,7 +65,7 @@ def make_cryostat(
         registry,
     )
     return geant4.LogicalVolume(
-        solid, materials.metal_aluminium_2011T8, "Cryostat", registry
+        solid, materials.metal_aluminium_2011T8, "cryostat_wall_aluminium", registry
     )
 
 
@@ -81,11 +83,11 @@ def make_wrap(
     top = height - wrap.inner.height_in_mm
 
     solid = polycone(
-        "wrap",
+        "hpge_wrap_hdpe",
         [(0, 0, r_out), (top, 0, r_out), (top, r_in, r_out), (height, r_in, r_out)],
         registry,
     )
-    return geant4.LogicalVolume(solid, materials.hdpe, "Wrap", registry)
+    return geant4.LogicalVolume(solid, materials.hdpe, "hpge_wrap_hdpe", registry)
 
 
 def make_holder(
@@ -169,7 +171,7 @@ def make_holder(
         msg = "cannot construct geometry for coax or ppc"
         raise NotImplementedError(msg)
 
-    solid = polycone("holder", planes, registry)
+    solid = polycone("hpge_holder_aluminium", planes, registry)
     return geant4.LogicalVolume(
-        solid, materials.metal_aluminium_2011T8, "Holder", registry
+        solid, materials.metal_aluminium_2011T8, "hpge_holder_aluminium", registry
     )

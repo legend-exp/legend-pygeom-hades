@@ -17,14 +17,14 @@ def make_bottom_plate(
     `plate` is ``hardware/setup/bottom_plate``.
     """
     solid = geant4.solid.Subtraction(
-        "final_bottom_plate",
-        box("bottom_plate", plate, registry),
-        box("cavity_bottom_plate", plate.cavity, registry),
+        "castle_bottom_plate_aluminium",
+        box("castle_bottom_plate_aluminium_box", plate, registry),
+        box("castle_bottom_plate_aluminium_slot", plate.cavity, registry),
         [[0, 0, 0], [0, plate.depth_in_mm / 2, 0]],
         registry,
     )
     return geant4.LogicalVolume(
-        solid, materials.metal_aluminium, "Bottom_plate", registry
+        solid, materials.metal_aluminium, "castle_bottom_plate_aluminium", registry
     )
 
 
@@ -41,9 +41,9 @@ def make_lead_castle(
     if "front" in castle:
         # the cavity is the inner cavity plus a box shifted towards +y
         cavity = geant4.solid.Union(
-            "total_cavity_1",
-            box("inner_cavity_base_1", castle.inner_cavity, registry),
-            box("cavity_base_1", castle.cavity, registry),
+            "castle_lead_cavity_with_port",
+            box("castle_lead_inner_cavity", castle.inner_cavity, registry),
+            box("castle_lead_port", castle.cavity, registry),
             [
                 [0, 0, 0],
                 [
@@ -56,8 +56,8 @@ def make_lead_castle(
             registry,
         )
         solid = geant4.solid.Subtraction(
-            "base_cavity_1",
-            box("base_lead_castle_1", castle.base, registry),
+            "castle_lead_step1",
+            box("castle_lead_base", castle.base, registry),
             cavity,
             [[0, 0, 0], [0, 0, 0]],
             registry,
@@ -65,9 +65,9 @@ def make_lead_castle(
         # the top and front blocks overlap the base by 0.01 mm, so that
         # the union has no coincident surfaces
         solid = geant4.solid.Union(
-            "top_base_1",
+            "castle_lead_step2",
             solid,
-            box("top_lead_castle_1", castle.top, registry),
+            box("castle_lead_top", castle.top, registry),
             [
                 [0, 0, 0],
                 [
@@ -79,9 +79,9 @@ def make_lead_castle(
             registry,
         )
         solid = geant4.solid.Union(
-            "final_lead_castle_1",
+            "castle_lead",
             solid,
-            box("front_1", castle.front, registry),
+            box("castle_lead_door", castle.front, registry),
             [
                 [0, 0, 0],
                 [
@@ -93,22 +93,22 @@ def make_lead_castle(
             registry,
         )
         return geant4.LogicalVolume(
-            solid, materials.metal_lead, "Lead_castle", registry
+            solid, materials.metal_lead, "castle_lead", registry
         )
 
     # GERDA-era castle: the top block is separated from the base by the copper plate
     cu_height = castle.copper_plate.height_in_mm
     solid = geant4.solid.Subtraction(
-        "base_cavity_2",
-        box("base_lead_castle_2", castle.base, registry),
-        box("inner_cavity_lead_castle_2", castle.inner_cavity, registry),
+        "castle_lead_step1",
+        box("castle_lead_base", castle.base, registry),
+        box("castle_lead_inner_cavity", castle.inner_cavity, registry),
         [[0, 0, 0], [0, 0, 0]],
         registry,
     )
     solid = geant4.solid.Union(
-        "final_lead_castle_2",
+        "castle_lead",
         solid,
-        box("top_lead_castle_2", castle.top, registry),
+        box("castle_lead_top", castle.top, registry),
         [
             [0, 0, 0],
             [
@@ -120,14 +120,14 @@ def make_lead_castle(
         registry,
     )
     castle_lv = geant4.LogicalVolume(
-        solid, materials.metal_lead, "Lead_castle", registry
+        solid, materials.metal_lead, "castle_lead", registry
     )
     # FIXME: the copper plate lies in the gap between base and top, i.e.
     # outside of its mother volume
     plate_lv = geant4.LogicalVolume(
-        box("copper_plate", castle.copper_plate, registry),
+        box("castle_plate_copper", castle.copper_plate, registry),
         materials.metal_copper,
-        "Copper_plate",
+        "castle_plate_copper",
         registry,
     )
     place(plate_lv, castle_lv, registry, z=-(castle.base.height_in_mm + cu_height) / 2)

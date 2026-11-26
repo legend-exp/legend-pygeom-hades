@@ -40,7 +40,6 @@ def place(
     mother: geant4.LogicalVolume,
     registry: geant4.Registry,
     *,
-    name: str | None = None,
     x: float = 0,
     y: float = 0,
     z: float = 0,
@@ -48,13 +47,13 @@ def place(
 ) -> geant4.PhysicalVolume:
     """Place `lv` in `mother` at (`x`, `y`, `z`) mm, rotated by `rotation` (rad).
 
-    The physical volume is called `name`, or ``<lv name>_PV`` if not given.
+    The physical volume has the name of `lv`.
     """
     return geant4.PhysicalVolume(
         [*rotation, "rad"],
         [x, y, z, "mm"],
         lv,
-        name if name is not None else f"{lv.name}_PV",
+        lv.name,
         mother,
         registry=registry,
     )

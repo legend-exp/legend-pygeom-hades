@@ -59,6 +59,7 @@ geometry. This is described in {doc}`metadata`.
 Configuration <configuration>
 Extra metadata format <metadata>
 Geometry description <description>
+Naming conventions <naming>
 Visualisation <vis>
 Package API reference <api/modules>
 ```

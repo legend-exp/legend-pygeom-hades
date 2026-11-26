@@ -31,10 +31,15 @@ def test_dump_gdml(tmp_path, capsys):
         ]
     )
 
-    assert "Source" in capsys.readouterr().out
+    assert "source_active" in capsys.readouterr().out
 
     reg = gdml.Reader(str(out)).getRegistry()
-    assert {"Source", "Cryostat", "Wrap", "Holder"} <= set(reg.logicalVolumeDict)
+    assert {
+        "source_active",
+        "cryostat_wall_aluminium",
+        "hpge_wrap_hdpe",
+        "hpge_holder_aluminium",
+    } <= set(reg.logicalVolumeDict)
 
 
 def test_options(tmp_path, monkeypatch):

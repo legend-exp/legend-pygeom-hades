@@ -152,7 +152,7 @@ def test_construct(config: AttrsDict, assert_copper_plate: bool):
     pygeomtools.geometry.check_registry_sanity(reg, reg)
 
     if assert_copper_plate:
-        assert "Copper_plate_PV" in reg.physicalVolumeDict
+        assert "castle_plate_copper" in reg.physicalVolumeDict
 
 
 @pytest.mark.parametrize(
@@ -200,4 +200,4 @@ def test_table_from_card(detector: str, card: str, castle: bool):
         }
     )
     reg = construct(config, public_geometry=public_geom)
-    assert ("castle_pv" in reg.physicalVolumeDict) == castle
+    assert ("castle_lead" in reg.physicalVolumeDict) == castle

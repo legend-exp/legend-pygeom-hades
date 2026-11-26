@@ -37,14 +37,15 @@ def make_source(
         The registries of the volumes and of their materials.
     """
 
-    def lv(solid, material, name):
-        return geant4.LogicalVolume(solid, material, name, registry)
+    def lv(solid, material):
+        return geant4.LogicalVolume(solid, material, solid.name, registry)
 
     def active(material):
         return lv(
-            tube("source", source.width_in_mm / 2, source.height_in_mm, registry),
+            tube(
+                "source_active", source.width_in_mm / 2, source.height_in_mm, registry
+            ),
             material,
-            "Source",
         )
 
     if source_type == "am_HS1":
@@ -55,10 +56,12 @@ def make_source(
         src = active(materials.silica)
         capsule = lv(
             tube(
-                "source_capsule", source.capsule.width_in_mm / 2, cap_height, registry
+                "source_capsule_steel",
+                source.capsule.width_in_mm / 2,
+                cap_height,
+                registry,
             ),
             materials.metal_steel,
-            "Source_Encapsulated",
         )
         place(
             src,
@@ -68,18 +71,16 @@ def make_source(
         )
         beam = lv(
             tube(
-                "collimator_beam",
+                "source_collimator_channel_air",
                 col.beam_width_in_mm / 2,
                 col.beam_height_in_mm,
                 registry,
             ),
             materials.air,
-            "Collimator_Beam",
         )
         outer = lv(
-            box("collimator", col, registry),
+            box("source_collimator_copper", col, registry),
             materials.metal_copper,
-            "Source_Collimated",
         )
         place(beam, outer, registry, z=(col.height_in_mm - col.beam_height_in_mm) / 2)
         place(
@@ -92,9 +93,8 @@ def make_source(
     elif source_type == "am_HS6":
         src = active(materials.pmma)
         outer = lv(
-            box("source_capsule", source.capsule, registry),
+            box("source_capsule_pmma", source.capsule, registry),
             materials.pmma,
-            "Source_Encapsulated",
         )
         place(src, outer, registry)
 
@@ -104,32 +104,32 @@ def make_source(
         src = active(materials.hdpe)
         foil = lv(
             tube(
-                "source_foil",
+                "source_foil_hdpe",
                 source.foil.width_in_mm / 2,
                 source.foil.height_in_mm,
                 registry,
             ),
             materials.hdpe,
-            "Source_foil",
         )
         place(src, foil, registry)
         al_ring = lv(
             tube(
-                "source_Alring",
+                "source_ring_aluminium",
                 ring.width_max_in_mm / 2,
                 ring.height_in_mm,
                 registry,
                 r_min=ring.width_min_in_mm / 2,
             ),
             materials.metal_aluminium,
-            "Source_Alring",
         )
         outer = lv(
             tube(
-                "source_vacuum", ring.width_max_in_mm / 2, ring.height_in_mm, registry
+                "source_envelope_vacuum",
+                ring.width_max_in_mm / 2,
+                ring.height_in_mm,
+                registry,
             ),
             materials.vacuum,
-            "Source_Encapsulated",
         )
         place(foil, outer, registry)
         place(al_ring, outer, registry)
@@ -149,20 +149,21 @@ def make_source(
                 registry,
             ),
             materials.th_source_epoxy,
-            "Source_Epoxy",
         )
         capsule = lv(
             tube(
-                "source_capsule", source.capsule.width_in_mm / 2, cap_height, registry
+                "source_capsule_steel",
+                source.capsule.width_in_mm / 2,
+                cap_height,
+                registry,
             ),
             materials.metal_steel,
-            "Source_Encapsulated",
         )
         place(src, capsule, registry)
         place(epoxy, capsule, registry, z=(cap_height - source.epoxy.height_in_mm) / 2)
         cavity = lv(
             polycone(
-                "CuSource_holder_cavity",
+                "source_holder_bore_air",
                 [
                     (0, 0, cu.cavity_width_in_mm / 2),
                     (cu_all_height, 0, cu.cavity_width_in_mm / 2),
@@ -170,7 +171,6 @@ def make_source(
                 registry,
             ),
             materials.air,
-            "CuSource_Holder_Cavity",
         )
         place(
             capsule,
@@ -180,7 +180,7 @@ def make_source(
         )
         outer = lv(
             polycone(
-                "CuSource_holder",
+                "source_holder_copper",
                 [
                     (0, 0, cu.width_in_mm / 2),
                     (cu.height_in_mm, 0, cu.width_in_mm / 2),
@@ -190,7 +190,6 @@ def make_source(
                 registry,
             ),
             materials.metal_copper,
-            "CuSource_Holder",
         )
         place(cavity, outer, registry)
 
@@ -209,13 +208,13 @@ def make_th_plates(
     `plates` is the ``plates`` block of ``hardware/sources/th_HS2``.
     """
     solid = tube(
-        "source_plates",
+        "source_holder_plate_lead",
         plates.width_in_mm / 2,
         plates.height_in_mm,
         registry,
         r_min=plates.cavity_width_in_mm / 2,
     )
-    return geant4.LogicalVolume(solid, materials.metal_lead, "Source_Plates", registry)
+    return geant4.LogicalVolume(solid, materials.metal_lead, solid.name, registry)
 
 
 def make_source_holder(
@@ -245,16 +244,16 @@ def make_source_holder(
 
     if "cavity_width_in_mm" in source_holder:
         solid = geant4.solid.Subtraction(
-            "source_holder",
+            "source_holder_pmma",
             tube(
-                "cylinder_source_holder",
+                "source_holder_pmma_ring",
                 r_out,
                 source_holder.height_in_mm,
                 registry,
                 r_min=r_in,
             ),
             tube(
-                "cavity_source_holder",
+                "source_holder_pmma_hole",
                 source_holder.cavity_width_in_mm / 2,
                 source_holder.cavity_height_in_mm,
                 registry,
@@ -262,7 +261,7 @@ def make_source_holder(
             [[np.pi / 2, 0, 0], [0, (r_in + r_out) / 2, 0]],
             registry,
         )
-        return geant4.LogicalVolume(solid, materials.pmma, "Source_Holder", registry)
+        return geant4.LogicalVolume(solid, materials.pmma, solid.name, registry)
 
     # the pocket in the top plate extends down to the source position
     z_cryo = source_z + source_holder.top_plate_height_in_mm / 2
@@ -276,7 +275,7 @@ def make_source_holder(
 
     if "top_plate_depth_in_mm" not in source_holder:
         solid = polycone(
-            "source_holder",
+            "source_holder_pmma",
             [
                 (0, source_holder.top_plate_width_in_mm / 2, r_out),
                 (
@@ -300,14 +299,14 @@ def make_source_holder(
         )
     else:
         solid = geant4.solid.Subtraction(
-            "source_holder_endcap",
+            "source_holder_pmma_step1",
             polycone(
-                "source_holder_cylinder",
+                "source_holder_pmma_cylinder",
                 [(0, 0, r_out), (source_holder.top_height_in_mm, 0, r_out), *sides],
                 registry,
             ),
             geant4.solid.Box(
-                "rectangular_plate",
+                "source_holder_pmma_plate_pocket",
                 source_holder.top_plate_width_in_mm,
                 source_holder.top_plate_depth_in_mm,
                 source_holder.top_plate_height_in_mm,
@@ -317,10 +316,10 @@ def make_source_holder(
             registry,
         )
         solid = geant4.solid.Subtraction(
-            "source_holder_sub",
+            "source_holder_pmma",
             solid,
             geant4.solid.Box(
-                "source_holder_top_inner",
+                "source_holder_pmma_top_pocket",
                 source_holder.top_inner_width_in_mm,
                 source_holder.top_inner_depth_in_mm,
                 source_holder.top_height_in_mm,
@@ -338,7 +337,7 @@ def make_source_holder(
             registry,
         )
 
-    return geant4.LogicalVolume(solid, materials.pmma, "Source_Holder", registry)
+    return geant4.LogicalVolume(solid, materials.pmma, solid.name, registry)
 
 
 def place_source(
@@ -391,7 +390,6 @@ def place_source(
             th_plates_lv,
             mother_lv,
             registry,
-            name="th_plate_pv",
             z=holder_z + plates.height_in_mm / 2,
         )
 
@@ -399,7 +397,6 @@ def place_source(
         source_lv,
         mother_lv,
         registry,
-        name="source_pv",
         x=x,
         y=source_y,
         z=source_z,
@@ -409,9 +406,7 @@ def place_source(
     if source_holder is not None:
         source_holder_lv = make_source_holder(source_holder, z, registry, materials)
 
-        place(
-            source_holder_lv, mother_lv, registry, name="source_holder_pv", z=holder_z
-        )
+        place(source_holder_lv, mother_lv, registry, z=holder_z)
 
 
 def source_xyz(
