@@ -67,3 +67,30 @@ reg = pygeomhades.core.construct(
 # visualise
 pygeomtools.viewer.visualize(reg)
 ```
+
+## Selecting a run with `run_key`
+
+A configuration can name a run of `hades-metadata` with the `run_key` field,
+instead of giving the run fields. The format is
+`<detector>-<campaign>-<measurement>-<run>`:
+
+```yaml
+run_key: V07302A-c1-am_HS1_top_dlt-run0001
+```
+
+The geometry is then built from the configuration of that run. The other
+top-level fields of the configuration replace the fields of the run, e.g. to
+move the source in a systematic study:
+
+```yaml
+run_key: V07302A-c1-am_HS1_top_dlt-run0001
+source_position: # replaces the whole source_position of the run
+  phi_in_deg: 0.0
+  r_in_mm: 46.0
+  z_in_mm: 5.0
+```
+
+Such a file is given with `--config`, or its fields are passed to
+`pygeomhades.core.construct` in Python. Like the lookup on the command line,
+`run_key` reads the private `hades-metadata` and does not work with the public
+geometry.

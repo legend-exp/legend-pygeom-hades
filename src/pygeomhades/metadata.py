@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
+import logging
+from collections.abc import Iterable, Mapping
 from importlib import resources
+from pathlib import Path
 
-from dbetto import AttrsDict, TextDB
+from dbetto import AttrsDict, TextDB, utils
+
+log = logging.getLogger(__name__)
 
 
 class PublicLegendMetadataProxy:
@@ -94,3 +98,55 @@ def merge_configs(diode_meta: AttrsDict, hades_meta: Mapping) -> AttrsDict:
         hpge.production.enrichment.val = 0.9
     hpge.hades = hades_meta
     return hpge
+
+
+def select_run(
+    path: str | Path,
+    detector: str | None = None,
+    campaign: str | None = None,
+    measurement: str | None = None,
+    run: str | None = None,
+) -> AttrsDict:
+    """Return the configuration of a run in hades-metadata.
+
+    The runs are stored in
+    ``hardware/configuration/<detector>/<campaign>/<measurement>.yaml``, keyed by
+    run name. A key left as ``None`` is taken if it has only one choice.
+    Otherwise, a :class:`ValueError` lists the choices.
+
+    Parameters
+    ----------
+    path
+        path to the hades-metadata repository.
+    """
+    path = Path(path) / "hardware" / "configuration"
+    for level, value in (("detector", detector), ("campaign", campaign)):
+        dirs = [p.name for p in path.iterdir() if p.is_dir()]
+        path /= _choose(dirs, level, value)
+
+    files = {p.stem: p for p in path.iterdir() if p.suffix in (".yaml", ".json")}
+    runs = AttrsDict(
+        utils.load_dict(str(files[_choose(files, "measurement", measurement)]))
+    )
+    return runs[_choose(runs, "run", run)]
+
+
+def _choose(options: Iterable[str], level: str, value: str | None) -> str:
+    """Return the selected option, or the only one if none is selected."""
+    options = sorted(options)
+    if value is not None and value in options:
+        return value
+    if value is None and len(options) == 1:
+        log.info("selected %s %s", level, options[0])
+        return options[0]
+
+    listed = ", ".join(options)
+    if len(options) > 10:
+        listed = (
+            f"{', '.join(options[:3])}, ..., {options[-1]} ({len(options)} {level}s)"
+        )
+    if value is None:
+        msg = f"select a {level} with --{level}: {listed}"
+    else:
+        msg = f"{level} {value} not found, available: {listed}"
+    raise ValueError(msg)
