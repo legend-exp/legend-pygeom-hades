@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from dbetto import utils
 from pyg4ometry import gdml, geant4
 from pygeomtools import viewer
 
@@ -86,3 +87,31 @@ def test_fine_mesh(tmp_path, monkeypatch, scene, mesh_calls):
 def test_bad_arguments(argv):
     with pytest.raises(SystemExit):
         _parse_cli_args(argv)
+
+
+@pytest.fixture
+def runs_file(tmp_path):
+    config = utils.load_dict(CONFIG)
+    path = tmp_path / "th_HS2_top_psa.yaml"
+    utils.write_dict(
+        {"run0001": config, "run0002": {**config, "run": "run0002"}}, str(path)
+    )
+    return str(path)
+
+
+def test_run_selection(runs_file, monkeypatch):
+    configs = []
+    monkeypatch.setattr(
+        cli.core, "construct", lambda config, **_: configs.append(config)
+    )
+    monkeypatch.setattr(cli, "write_pygeom", lambda *_: None)
+
+    dump_gdml_cli(["--config", runs_file, "--run", "run0002", "out.gdml"])
+    assert configs[0].run == "run0002"
+    assert configs[0].detector == "V13049A"
+
+    with pytest.raises(ValueError, match="run0003 not found"):
+        dump_gdml_cli(["--config", runs_file, "--run", "run0003", "out.gdml"])
+
+    with pytest.raises(ValueError, match="--run: run0001, run0002"):
+        dump_gdml_cli(["--config", runs_file, "out.gdml"])

@@ -17,7 +17,15 @@ source_position: # the source position, no source is built without it
 ```
 
 The run configurations in `hardware/configuration` of `hades-metadata` have this
-format (with additional fields) and can be used directly.
+format (with additional fields) and can be used directly. Each of these files
+holds all runs of one measurement, keyed by run name. On the command line,
+select the run with `--run`:
+
+```console
+$ legend-pygeom-hades --run run0001 \
+    --config hades-metadata/hardware/configuration/V07302A/c1/am_HS1_top_dlt.yaml \
+    hades.gdml
+```
 
 :::{note}
 

@@ -34,6 +34,14 @@ def dump_gdml_cli(argv: list[str] | None = None) -> None:
         meshconfig.setGlobalMeshSliceAndStack(100)
 
     config = AttrsDict(utils.load_dict(args.config))
+    if args.run is not None:
+        if args.run not in config:
+            msg = f"run {args.run} not found in {args.config}, available: {', '.join(config)}"
+            raise ValueError(msg)
+        config = config[args.run]
+    elif "detector" not in config:
+        msg = f"{args.config} has no 'detector' field, select one of its runs with --run: {', '.join(config)}"
+        raise ValueError(msg)
 
     registry = core.construct(
         config,
@@ -128,6 +136,11 @@ def _parse_cli_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--config",
         required=True,
         help="""Path to the configuration file.""",
+    )
+    geom_opts.add_argument(
+        "--run",
+        help="""Run to select from a configuration file that holds several runs
+        (e.g. a hades-metadata measurement file).""",
     )
 
     parser.add_argument(
