@@ -13,7 +13,7 @@ from pyg4ometry import geant4
 from pygeomhpges import make_hpge
 
 from . import colors, plot
-from .castle import make_bottom_plate, make_lead_castle
+from .castle import make_bottom_plate, place_lead_castle
 from .cryostat import make_cryostat, make_holder, make_vacuum_cavity, make_wrap
 from .materials import HadesMaterialRegistry
 from .metadata import (
@@ -25,7 +25,7 @@ from .metadata import (
     select_run,
 )
 from .plot import get_profile
-from .solids import place
+from .solids import SAFETY_GAP_IN_MM, place
 from .sources import place_source, scanning_axis_in_mm
 
 log = logging.getLogger(__name__)
@@ -143,24 +143,36 @@ def construct(
 
     place(lab_lv, world_lv, reg, rotation=(0, np.pi, 0))
 
+    # the cryostat is a full aluminium cylinder, its walls are the part around
+    # the vacuum cavity
+    cryostat_lv = make_cryostat(cryostat, reg, mats)
+    place(cryostat_lv, lab_lv, reg)
+    profiles["cryo"] = get_profile(cryostat_lv.solid) | {"offset": 0}
+
     cavity_lv = make_vacuum_cavity(cryostat, reg)
 
     # save the info for plotting
     profiles["cavity"] = get_profile(cavity_lv.solid) | {"offset": top_wall}
 
-    place(cavity_lv, lab_lv, reg, z=top_wall)
+    place(cavity_lv, cryostat_lv, reg, z=top_wall)
 
     # construct the wrap. As in the vendor assembly drawings, its closed end
-    # rests on the crystal front face. A cup longer than the space down to the
-    # inner bottom of the holder is cut at its open end.
+    # rests on the crystal front face (up to a safety gap). A cup longer than
+    # the space down to the inner bottom of the holder is cut at its open end.
     wrap = hpge.hades.wrap.geometry
     holder = hpge.hades.holder
-    wrap_top = hpge.hades.detector.position_in_mm - (
-        wrap.outer.height_in_mm - wrap.inner.height_in_mm
+    wrap_top = (
+        hpge.hades.detector.position_in_mm
+        - (wrap.outer.height_in_mm - wrap.inner.height_in_mm)
+        - SAFETY_GAP_IN_MM
     )
     holder_bottom = holder.position_in_mm + holder.geometry.cylinder.inner.height_in_mm
     wrap_lv = make_wrap(
-        wrap, hpge.geometry.radius_in_mm, holder_bottom - wrap_top, reg, mats
+        wrap,
+        hpge.geometry.radius_in_mm,
+        holder_bottom - wrap_top - SAFETY_GAP_IN_MM,
+        reg,
+        mats,
     )
 
     z = wrap_top - top_wall
@@ -200,11 +212,6 @@ def construct(
             hpge,
         )
     )
-    # construct the cryostat
-    cryostat_lv = make_cryostat(cryostat, reg, mats)
-
-    place(cryostat_lv, lab_lv, reg)
-    profiles["cryo"] = get_profile(cryostat_lv.solid) | {"offset": 0}
 
     setup = hmeta.hardware.setup
     table = measurement_table(setup, config)
@@ -256,10 +263,8 @@ def construct(
             else datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         )
         castle = setup.lead_castle[castles[table]]
-        castle_lv = make_lead_castle(castle, reg, mats)
-
-        z = plate_depth_in_mm - castle.base.height_in_mm / 2
-        place(castle_lv, lab_lv, reg, z=z)
+        z = plate_depth_in_mm - castle.base.height_in_mm / 2 - SAFETY_GAP_IN_MM
+        place_lead_castle(castle, z, lab_lv, reg, mats)
 
     colors.set_colors(reg)
 

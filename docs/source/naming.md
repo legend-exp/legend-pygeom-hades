@@ -25,8 +25,8 @@ the others.
 | ------------------------------- | --------------------- | ------------------------------------------------------------------ |
 | `world`                         | vacuum                | world volume                                                       |
 | `lab_air`                       | air                   | laboratory, rotated by 180 deg so that its z axis points down      |
-| `cryostat_wall_aluminium`       | aluminium alloy       | walls of the vacuum cryostat                                       |
-| `cryostat_vacuum`               | vacuum                | inside of the cryostat                                             |
+| `cryostat_wall_aluminium`       | aluminium alloy       | vacuum cryostat, a full cylinder that contains `cryostat_vacuum`   |
+| `cryostat_vacuum`               | vacuum                | inside of the cryostat, holds detector, holder and wrap            |
 | _detector name_                 | germanium             | HPGe detector                                                      |
 | `hpge_holder_aluminium`         | aluminium alloy       | detector holder                                                    |
 | `hpge_wrap_hdpe`                | polyethylene (HDPE)   | detector wrap                                                      |

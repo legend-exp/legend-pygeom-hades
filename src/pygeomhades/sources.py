@@ -12,7 +12,7 @@ from pyg4ometry import geant4
 
 from .materials import HadesMaterialRegistry
 from .metadata import measurement_table
-from .solids import box, place, polycone, tube
+from .solids import SAFETY_GAP_IN_MM, box, place, polycone, tube
 
 log = logging.getLogger(__name__)
 
@@ -49,9 +49,13 @@ def make_source(
             material,
         )
 
+    # g separates surfaces that touch in reality (see SAFETY_GAP_IN_MM)
+    g = SAFETY_GAP_IN_MM
+
     if source_type == "am_HS1":
         # encapsulated source inside a collimator with a cylindrical beam
-        # channel above it
+        # channel above it. The channel ends a safety gap below the collimator
+        # top.
         col = source.collimator
         cap_height = source.capsule.height_in_mm
         src = active(materials.silica)
@@ -74,7 +78,7 @@ def make_source(
             tube(
                 "source_collimator_channel_air",
                 col.beam_width_in_mm / 2,
-                col.beam_height_in_mm,
+                col.beam_height_in_mm - g,
                 registry,
             ),
             materials.air,
@@ -83,12 +87,17 @@ def make_source(
             box("source_collimator_copper", col, registry),
             materials.metal_copper,
         )
-        place(beam, outer, registry, z=(col.height_in_mm - col.beam_height_in_mm) / 2)
+        place(
+            beam,
+            outer,
+            registry,
+            z=(col.height_in_mm - col.beam_height_in_mm - g) / 2,
+        )
         place(
             capsule,
             outer,
             registry,
-            z=-cap_height / 2 - col.beam_height_in_mm + col.height_in_mm / 2,
+            z=-cap_height / 2 - col.beam_height_in_mm + col.height_in_mm / 2 - g,
         )
 
     elif source_type == "am_HS6":
@@ -100,7 +109,8 @@ def make_source(
         place(src, outer, registry)
 
     elif source_type in ["ba_HS4", "co_HS5"]:
-        # source on a foil, surrounded by an aluminium ring
+        # source on a foil, surrounded by an aluminium ring. The ring and the
+        # envelope are a safety gap wider than the foil and the ring.
         ring = source.al_ring
         src = active(materials.hdpe)
         foil = lv(
@@ -119,15 +129,15 @@ def make_source(
                 ring.width_max_in_mm / 2,
                 ring.height_in_mm,
                 registry,
-                r_min=ring.width_min_in_mm / 2,
+                r_min=ring.width_min_in_mm / 2 + g,
             ),
             materials.metal_aluminium,
         )
         outer = lv(
             tube(
                 "source_envelope_vacuum",
-                ring.width_max_in_mm / 2,
-                ring.height_in_mm,
+                ring.width_max_in_mm / 2 + g,
+                ring.height_in_mm + 2 * g,
                 registry,
             ),
             materials.vacuum,
@@ -137,7 +147,8 @@ def make_source(
 
     elif source_type == "th_HS2":
         # encapsulated source with epoxy, in the air cavity of a copper
-        # holder. The copper holder is a cylinder with a wider bottom.
+        # holder. The copper holder is a cylinder with a wider bottom. The
+        # cavity is closed by a safety gap of copper at both ends.
         cu = source.copper
         cu_all_height = cu.height_in_mm + cu.bottom_height_in_mm
         cap_height = source.capsule.height_in_mm
@@ -161,13 +172,18 @@ def make_source(
             materials.metal_steel,
         )
         place(src, capsule, registry)
-        place(epoxy, capsule, registry, z=(cap_height - source.epoxy.height_in_mm) / 2)
+        place(
+            epoxy,
+            capsule,
+            registry,
+            z=(cap_height - source.epoxy.height_in_mm) / 2 - g,
+        )
         cavity = lv(
             polycone(
                 "source_holder_bore_air",
                 [
-                    (0, 0, cu.cavity_width_in_mm / 2),
-                    (cu_all_height, 0, cu.cavity_width_in_mm / 2),
+                    (g, 0, cu.cavity_width_in_mm / 2),
+                    (cu_all_height - g, 0, cu.cavity_width_in_mm / 2),
                 ],
                 registry,
             ),
@@ -177,7 +193,10 @@ def make_source(
             capsule,
             cavity,
             registry,
-            z=cu_all_height - cap_height / 2 - source.offset_height_in_mm[position],
+            z=cu_all_height
+            - cap_height / 2
+            - source.offset_height_in_mm[position]
+            - 2 * g,
         )
         outer = lv(
             polycone(
@@ -229,7 +248,9 @@ def make_source_holder(
     The shape follows the metadata in ``hardware/source_holders/``: a ring around
     the cryostat with a radial hole (lateral holder, has ``cavity_width_in_mm``),
     or a cap on the cryostat top (z = 0) with a round or rectangular (has
-    ``top_plate_depth_in_mm``) pocket for the source.
+    ``top_plate_depth_in_mm``) pocket for the source. The holder, its pocket
+    and its ring are larger by safety gaps than the volumes they hold or
+    surround (see :data:`.solids.SAFETY_GAP_IN_MM`).
 
     Parameters
     ----------
@@ -240,6 +261,7 @@ def make_source_holder(
     registry, materials
         The registries of the volumes and of their materials.
     """
+    g = SAFETY_GAP_IN_MM
     r_out = source_holder.outer_width_in_mm / 2
     r_in = source_holder.inner_width_in_mm / 2
 
@@ -253,11 +275,11 @@ def make_source_holder(
                 r_out,
                 source_holder.height_in_mm,
                 registry,
-                r_min=r_in,
+                r_min=r_in + g,
             ),
             tube(
                 "source_holder_pmma_hole",
-                source_holder.cavity_width_in_mm / 2,
+                source_holder.cavity_width_in_mm / 2 + g,
                 r_in + r_out,
                 registry,
             ),
@@ -271,23 +293,24 @@ def make_source_holder(
     z_end = z_cryo + source_holder.bottom_height_in_mm
     sides = [
         (source_holder.top_height_in_mm, r_in, r_out),
-        (z_cryo, r_in, r_out),
-        (z_cryo, source_holder.bottom_inner_width_in_mm / 2, r_out),
+        (z_cryo - g, r_in, r_out),
+        (z_cryo - g, source_holder.bottom_inner_width_in_mm / 2, r_out),
         (z_end, source_holder.bottom_inner_width_in_mm / 2, r_out),
     ]
+    pocket_height = source_holder.top_plate_height_in_mm + 2 * g
 
     if "top_plate_depth_in_mm" not in source_holder:
         solid = polycone(
             "source_holder_pmma",
             [
-                (0, source_holder.top_plate_width_in_mm / 2, r_out),
+                (0, source_holder.top_plate_width_in_mm / 2 + 2 * g, r_out),
                 (
-                    source_holder.top_plate_height_in_mm,
-                    source_holder.top_plate_width_in_mm / 2,
+                    pocket_height,
+                    source_holder.top_plate_width_in_mm / 2 + 2 * g,
                     r_out,
                 ),
                 (
-                    source_holder.top_plate_height_in_mm,
+                    pocket_height,
                     source_holder.top_inner_width_in_mm / 2,
                     r_out,
                 ),
@@ -308,14 +331,16 @@ def make_source_holder(
                 [(0, 0, r_out), (source_holder.top_height_in_mm, 0, r_out), *sides],
                 registry,
             ),
+            # the box extends above the holder, so that the subtraction does
+            # not leave a coincident surface
             geant4.solid.Box(
                 "source_holder_pmma_plate_pocket",
-                source_holder.top_plate_width_in_mm,
-                source_holder.top_plate_depth_in_mm,
-                source_holder.top_plate_height_in_mm,
+                source_holder.top_plate_width_in_mm + 4 * g,
+                source_holder.top_plate_depth_in_mm + 4 * g,
+                2 * pocket_height,
                 registry,
             ),
-            [[0, 0, 0], [0, 0, source_holder.top_plate_height_in_mm / 2]],
+            [[0, 0, 0], [0, 0, 0]],
             registry,
         )
         solid = geant4.solid.Subtraction(
@@ -389,7 +414,12 @@ def place_source(
     if source_type == "th_HS2" and position == "top":
         copper = source.copper
         plates = source.plates
-        source_z = holder_z - copper.height_in_mm - copper.bottom_height_in_mm
+        source_z = (
+            holder_z
+            - copper.height_in_mm
+            - copper.bottom_height_in_mm
+            - SAFETY_GAP_IN_MM
+        )
         th_plates_lv = make_th_plates(plates, registry, materials)
         place(
             th_plates_lv,

@@ -7,7 +7,7 @@ from dbetto import AttrsDict
 from pyg4ometry import geant4
 
 from .materials import HadesMaterialRegistry
-from .solids import polycone
+from .solids import SAFETY_GAP_IN_MM, polycone
 
 
 def make_vacuum_cavity(
@@ -42,26 +42,17 @@ def make_vacuum_cavity(
 def make_cryostat(
     cryostat: AttrsDict, registry: geant4.Registry, materials: HadesMaterialRegistry
 ) -> geant4.LogicalVolume:
-    """Create the cryostat, a closed cylinder with a vacuum cavity.
+    """Create the cryostat as a full cylinder.
 
-    `cryostat` is the ``cryostat`` block of ``hardware/cryostat/<detector>``.
-    z = 0 is the cryostat top.
+    The vacuum cavity (see :func:`make_vacuum_cavity`) is placed inside it, so
+    the walls are the aluminium around the cavity. `cryostat` is the
+    ``cryostat`` block of ``hardware/cryostat/<detector>``. z = 0 is the
+    cryostat top.
     """
     r_out = cryostat.width_in_mm / 2
-    r_in = r_out - cryostat.side_thickness_in_mm
-    start = cryostat.top_thickness_in_mm
-    end = cryostat.height_in_mm - cryostat.bottom_thickness_in_mm
-
     solid = polycone(
         "cryostat_wall_aluminium",
-        [
-            (0, 0, r_out),
-            (start, 0, r_out),
-            (start, r_in, r_out),
-            (end, r_in, r_out),
-            (end, 0, r_out),
-            (cryostat.height_in_mm, 0, r_out),
-        ],
+        [(0, 0, r_out), (cryostat.height_in_mm, 0, r_out)],
         registry,
     )
     return geant4.LogicalVolume(
@@ -79,12 +70,12 @@ def make_wrap(
     """Create the detector wrap (HD1000 polyethylene), a cup closed at z = 0.
 
     `wrap` is the ``wrap.geometry`` block of ``hardware/cryostat/<detector>``.
-    The inner radius is at least `crystal_radius` (mm), so the wrap does not
-    enter the crystal. A cup taller than `max_height` (mm) is cut at its open
-    end.
+    The inner radius is larger than `crystal_radius` (mm), so the wrap does
+    not touch the crystal. A cup taller than `max_height` (mm) is cut at its
+    open end.
     """
     r_out = wrap.outer.radius_in_mm
-    r_in = max(wrap.inner.radius_in_mm, crystal_radius)
+    r_in = max(wrap.inner.radius_in_mm, crystal_radius + SAFETY_GAP_IN_MM)
     top = wrap.outer.height_in_mm - wrap.inner.height_in_mm
     height = min(wrap.outer.height_in_mm, max_height)
 

@@ -6,6 +6,12 @@ import numpy as np
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
+#: gap (mm) between volumes that touch in the real setup, so that they do not
+#: share a surface (Geant4 cannot tell on which side of a shared surface a
+#: point is). Much larger than the Geant4 surface tolerance (1e-9 mm), much
+#: smaller than any physical effect.
+SAFETY_GAP_IN_MM = 1e-3
+
 
 def polycone(
     name: str, planes: list[tuple[float, float, float]], registry: geant4.Registry
