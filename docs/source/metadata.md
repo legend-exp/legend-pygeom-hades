@@ -16,9 +16,13 @@ of `hades-metadata`. Lengths are in mm, and the `width` of round parts is their
 diameter.
 
 - `cryostat/<detector>`: for each detector, the dimensions of its vacuum
-  cryostat (`cryostat`), of the detector holder (`holder`) and of the mylar wrap
-  (`wrap`), and the positions of holder, wrap and detector in the cryostat. See
-  the
+  cryostat (`cryostat`), of the detector holder (`holder`) and of the HDPE wrap
+  (`wrap`), and the positions of holder and detector in the cryostat. The wrap
+  is not positioned in the metadata: as in the vendor assembly drawings, its
+  closed end rests on the crystal front face. The wrap does not enter the
+  crystal (its inner radius is at least the crystal radius) nor the holder (a
+  cup longer than the space down to the inner bottom of the holder is cut at its
+  open end). See the
   [vendor documents](https://legend-exp.atlassian.net/wiki/spaces/LEGEND/pages/397049975/Vendors+documents),
   `dimensions_holder_wrap.pdf` describes the names used for holder and wrap. The
   holder and wrap entries of a new detector can be created with

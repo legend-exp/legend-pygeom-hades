@@ -70,17 +70,23 @@ def make_cryostat(
 
 
 def make_wrap(
-    wrap: AttrsDict, registry: geant4.Registry, materials: HadesMaterialRegistry
+    wrap: AttrsDict,
+    crystal_radius: float,
+    max_height: float,
+    registry: geant4.Registry,
+    materials: HadesMaterialRegistry,
 ) -> geant4.LogicalVolume:
     """Create the detector wrap (HD1000 polyethylene), a cup closed at z = 0.
 
-    `wrap` is the ``wrap.geometry`` block of
-    ``hardware/cryostat/<detector>``.
+    `wrap` is the ``wrap.geometry`` block of ``hardware/cryostat/<detector>``.
+    The inner radius is at least `crystal_radius` (mm), so the wrap does not
+    enter the crystal. A cup taller than `max_height` (mm) is cut at its open
+    end.
     """
     r_out = wrap.outer.radius_in_mm
-    r_in = wrap.inner.radius_in_mm
-    height = wrap.outer.height_in_mm
-    top = height - wrap.inner.height_in_mm
+    r_in = max(wrap.inner.radius_in_mm, crystal_radius)
+    top = wrap.outer.height_in_mm - wrap.inner.height_in_mm
+    height = min(wrap.outer.height_in_mm, max_height)
 
     solid = polycone(
         "hpge_wrap_hdpe",

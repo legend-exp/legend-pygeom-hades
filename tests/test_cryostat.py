@@ -43,10 +43,19 @@ def test_make_wrap():
         }
     )
 
-    wrap_lv = make_wrap(wrap, *registries())
+    wrap_lv = make_wrap(wrap, 45, 120, *registries())
 
-    assert wrap_lv is not None
     assert isinstance(wrap_lv, geant4.LogicalVolume)
+    assert max(wrap_lv.solid.pRMin) == 49
+    assert max(wrap_lv.solid.pZpl) == 100
+
+    # a cup narrower than the crystal touches it
+    wrap_lv = make_wrap(wrap, 49.5, 120, *registries())
+    assert max(wrap_lv.solid.pRMin) == 49.5
+
+    # a cup longer than the space in the holder is cut at its open end
+    wrap_lv = make_wrap(wrap, 45, 98.5, *registries())
+    assert max(wrap_lv.solid.pZpl) == 98.5
 
 
 def test_make_holder():
