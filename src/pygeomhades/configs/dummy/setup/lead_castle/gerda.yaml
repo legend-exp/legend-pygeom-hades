@@ -5,7 +5,6 @@ base:
 inner_cavity:
   width_in_mm: 250
   depth_in_mm: 250
-  height_in_mm: 400
 top:
   width_in_mm: 200
   depth_in_mm: 200

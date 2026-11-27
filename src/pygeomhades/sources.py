@@ -244,6 +244,8 @@ def make_source_holder(
     r_in = source_holder.inner_width_in_mm / 2
 
     if "cavity_width_in_mm" in source_holder:
+        # the hole, centred in the ring wall, goes from the ring axis through
+        # the whole wall
         solid = geant4.solid.Subtraction(
             "source_holder_pmma",
             tube(
@@ -256,7 +258,7 @@ def make_source_holder(
             tube(
                 "source_holder_pmma_hole",
                 source_holder.cavity_width_in_mm / 2,
-                source_holder.cavity_height_in_mm,
+                r_in + r_out,
                 registry,
             ),
             [[np.pi / 2, 0, 0], [0, (r_in + r_out) / 2, 0]],
