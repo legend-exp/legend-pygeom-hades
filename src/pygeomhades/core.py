@@ -14,7 +14,13 @@ from pygeomhpges import make_hpge
 
 from . import colors, plot
 from .castle import make_bottom_plate, place_lead_castle
-from .cryostat import make_cryostat, make_holder, make_vacuum_cavity, make_wrap
+from .cryostat import (
+    make_cryostat,
+    make_foil,
+    make_holder,
+    make_vacuum_cavity,
+    make_wrap,
+)
 from .materials import HadesMaterialRegistry
 from .metadata import (
     PublicHadesMetadataProxy,
@@ -156,15 +162,25 @@ def construct(
 
     place(cavity_lv, cryostat_lv, reg, z=top_wall)
 
+    # the Mylar foil of the BEGe cryostats lies on the crystal front face,
+    # under the closed end of the wrap. front is the depth of the surface that
+    # the wrap rests on.
+    front = hpge.hades.detector.position_in_mm
+    if "foil" in hpge.hades:
+        foil_lv = make_foil(hpge.hades.foil, hpge.geometry.radius_in_mm, reg)
+        front -= hpge.hades.foil.thickness_in_mm + SAFETY_GAP_IN_MM
+
+        z = front + hpge.hades.foil.thickness_in_mm / 2 - top_wall
+        place(foil_lv, cavity_lv, reg, z=z)
+
     # construct the wrap. As in the vendor assembly drawings, its closed end
-    # rests on the crystal front face (up to a safety gap). A cup longer than
-    # the space down to the inner bottom of the holder is cut at its open end.
+    # rests on the crystal front face, or on the foil (up to a safety gap). A
+    # cup longer than the space down to the inner bottom of the holder is cut
+    # at its open end.
     wrap = hpge.hades.wrap.geometry
     holder = hpge.hades.holder
     wrap_top = (
-        hpge.hades.detector.position_in_mm
-        - (wrap.outer.height_in_mm - wrap.inner.height_in_mm)
-        - SAFETY_GAP_IN_MM
+        front - (wrap.outer.height_in_mm - wrap.inner.height_in_mm) - SAFETY_GAP_IN_MM
     )
     holder_bottom = holder.position_in_mm + holder.geometry.cylinder.inner.height_in_mm
     wrap_lv = make_wrap(

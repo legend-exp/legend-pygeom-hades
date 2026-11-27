@@ -39,6 +39,7 @@ world
     │   └── cryostat_vacuum            the cryostat walls are the aluminium around it
     │       ├── hpge_holder_aluminium
     │       ├── hpge_wrap_hdpe
+    │       ├── hpge_foil_mylar            BEGe cryostats only
     │       └── <detector name>
     ├── source_holder_pmma, source parts (each source with its own daughters)
     ├── castle_bottom_plate_aluminium

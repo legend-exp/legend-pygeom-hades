@@ -7,7 +7,7 @@ from dbetto import AttrsDict
 from pyg4ometry import geant4
 
 from .materials import HadesMaterialRegistry
-from .solids import SAFETY_GAP_IN_MM, polycone
+from .solids import SAFETY_GAP_IN_MM, polycone, tube
 
 
 def make_vacuum_cavity(
@@ -85,6 +85,18 @@ def make_wrap(
         registry,
     )
     return geant4.LogicalVolume(solid, materials.hdpe, "hpge_wrap_hdpe", registry)
+
+
+def make_foil(
+    foil: AttrsDict, crystal_radius: float, registry: geant4.Registry
+) -> geant4.LogicalVolume:
+    """Create the Mylar foil on the crystal front face, a disc centred at z = 0.
+
+    `foil` is the ``foil`` block of ``hardware/cryostat/<detector>``. The foil
+    has the radius of the crystal, `crystal_radius` (mm).
+    """
+    solid = tube("hpge_foil_mylar", crystal_radius, foil.thickness_in_mm, registry)
+    return geant4.LogicalVolume(solid, "G4_MYLAR", "hpge_foil_mylar", registry)
 
 
 def make_holder(

@@ -23,6 +23,7 @@ MATERIAL_COLORS = {
     "metal_copper": [0.72, 0.45, 0.20, 1.0],
     "metal_lead": [0.35, 0.36, 0.40, 1.0],
     "hdpe": [0.95, 0.95, 0.93, 0.8],  # white polyethylene
+    "G4_MYLAR": [0.85, 0.75, 0.35, 0.8],  # gold-colored foil
     "pmma": [0.85, 0.92, 0.95, 0.5],
     "silica": [0.95, 0.95, 0.95, 0.5],
     "th_source_epoxy": [0.80, 0.60, 0.20, 0.7],
