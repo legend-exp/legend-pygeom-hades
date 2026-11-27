@@ -150,18 +150,28 @@ def construct(
 
     place(cavity_lv, lab_lv, reg, z=top_wall)
 
-    # construct the wrap
-    wrap_lv = make_wrap(hpge.hades.wrap.geometry, reg, mats)
+    # construct the wrap. As in the vendor assembly drawings, its closed end
+    # rests on the crystal front face. A cup longer than the space down to the
+    # inner bottom of the holder is cut at its open end.
+    wrap = hpge.hades.wrap.geometry
+    holder = hpge.hades.holder
+    wrap_top = hpge.hades.detector.position_in_mm - (
+        wrap.outer.height_in_mm - wrap.inner.height_in_mm
+    )
+    holder_bottom = holder.position_in_mm + holder.geometry.cylinder.inner.height_in_mm
+    wrap_lv = make_wrap(
+        wrap, hpge.geometry.radius_in_mm, holder_bottom - wrap_top, reg, mats
+    )
 
-    z = hpge.hades.wrap.position_in_mm - top_wall
+    z = wrap_top - top_wall
     place(wrap_lv, cavity_lv, reg, z=z)
 
     profiles["wrap"] = get_profile(wrap_lv.solid) | {"offset": z + top_wall}
 
     # construct the holder
-    holder_lv = make_holder(hpge.hades.holder.geometry, hpge.type, reg, mats)
+    holder_lv = make_holder(holder.geometry, hpge.type, reg, mats)
 
-    z = hpge.hades.holder.position_in_mm - top_wall
+    z = holder.position_in_mm - top_wall
     place(holder_lv, cavity_lv, reg, z=z)
 
     profiles["holder"] = get_profile(holder_lv.solid) | {"offset": z + top_wall}
