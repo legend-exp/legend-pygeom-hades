@@ -73,11 +73,11 @@ def test_make_holder():
             },
             "bottom_cyl": {
                 "inner": {
-                    "height_in_mm": 100,
+                    "height_in_mm": 110,
                     "radius_in_mm": 100,
                 },
                 "outer": {
-                    "height_in_mm": 104,
+                    "height_in_mm": 120,
                     "radius_in_mm": 104,
                 },
             },

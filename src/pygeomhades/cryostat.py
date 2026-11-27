@@ -122,7 +122,8 @@ def make_holder(
 
     if det_type == "icpc":
         # cylinder open at z = 0, with an annular bottom continued by a
-        # smaller closed cylinder (the "bottom cylinder")
+        # smaller closed cylinder (the "bottom cylinder"), whose heights are
+        # measured from the holder top
         bot = holder.bottom_cyl
         b_in = bot.inner.radius_in_mm
         b_out = bot.outer.radius_in_mm
@@ -131,9 +132,9 @@ def make_holder(
             (h_in, b_in, r_out),
             (h_out, b_in, r_out),
             (h_out, b_in, b_out),
-            (h_in + bot.inner.height_in_mm, b_in, b_out),
-            (h_in + bot.inner.height_in_mm, 0, b_out),
-            (h_out + bot.outer.height_in_mm, 0, b_out),
+            (bot.inner.height_in_mm, b_in, b_out),
+            (bot.inner.height_in_mm, 0, b_out),
+            (bot.outer.height_in_mm, 0, b_out),
         ]
 
         if "rings" not in holder:
