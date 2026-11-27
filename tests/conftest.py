@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from dbetto import utils
+from dbetto import AttrsDict, TextDB, utils
 from legendmeta import HadesMetadata, LegendMetadata
 
 from pygeomhades import cli, core
@@ -64,54 +64,55 @@ def metadatas():
     return LegendMetadata(), HadesMetadata()
 
 
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    if "gdml_file" not in metafunc.fixturenames:
-        return
-
-    # collection-time imports
-    import dbetto
-    import pygeomtools
-    from dbetto import AttrsDict
-    from pyg4ometry import geant4
-
-    from pygeomhades import core
-    from pygeomhades.core import construct
-    from pygeomhades.metadata import PublicHadesMetadataProxy, PublicLegendMetadataProxy
-
-    # use pytest's base temp dir for the session
-    outdir = metafunc.config._tmp_path_factory.mktemp("gdml")
+def _geometry_configs() -> dict[str, AttrsDict]:
+    """Return the configurations of the geometries checked with remage, by test ID."""
+    configs = {
+        f"dummy-{meas}": AttrsDict(next(iter(runs.values())))
+        for meas, runs in TextDB(Path(__file__).parent / "dummy_prod" / "c1").items()
+    }
+    measurements = ("th_HS2_top_psa", "th_HS2_lat_psa")
 
     if public_geom:
-        _, hmeta = PublicLegendMetadataProxy(), PublicHadesMetadataProxy()
-    else:
-        _, hmeta = LegendMetadata(), HadesMetadata()
+        for det in PublicHadesMetadataProxy().hardware.cryostat.keys():  # noqa: SIM118
+            for meas in measurements:
+                configs[f"{det}-{meas}"] = AttrsDict(
+                    configs[f"dummy-{meas}"] | {"detector": det}
+                )
+        return configs
 
-    files: list[Path] = []
+    # the first Th top and lateral run of every detector in hades-metadata
+    hardware = Path(HadesMetadata(lazy=True).__path__) / "hardware"
+    conf_dir = hardware / "configuration"
+    for det in sorted(p.stem for p in (hardware / "cryostat").glob("*.yaml")):
+        for meas in measurements:
+            files = sorted(conf_dir.glob(f"{det}/*/{meas}.yaml"))
+            if files:
+                run = next(iter(utils.load_dict(str(files[0]))))
+                run_key = f"{det}-{files[0].parent.name}-{meas}-{run}"
+                configs[run_key] = AttrsDict({"run_key": run_key})
+    return configs
 
-    test_daq_meta = dbetto.TextDB(f"{Path(__file__).parent}/dummy_prod/c1")
-    for meas, runinfo in test_daq_meta.items():
-        config = next(iter(runinfo.values()))
-        reg = core.construct(config, public_geometry=public_geom)
-        gdml_file = outdir / f"{meas}_{config.detector}.gdml"
-        pygeomtools.geometry.check_registry_sanity(reg, reg)
-        pygeomtools.write_pygeom(reg, gdml_file)
-        files.append(gdml_file)
 
-    for det in hmeta.hardware.cryostat.keys():  # noqa: SIM118
-        reg = construct(
-            AttrsDict(
-                {
-                    "detector": det,
-                    "campaign": "c1",
-                    "measurement": "am_HS1_top_dlt",
-                    "daq_settings": {"flashcam": {"card_interface": "efb3"}},
-                }
-            ),
-            public_geometry=public_geom,
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    # the geometries are built by the gdml_file fixture, only for the tests
+    # that are selected
+    if "gdml_file" in metafunc.fixturenames:
+        configs = _geometry_configs()
+        metafunc.parametrize(
+            "gdml_file",
+            list(configs.values()),
+            ids=list(configs),
+            indirect=True,
+            scope="session",
         )
-        assert isinstance(reg, geant4.Registry)
-        gdml_file = outdir / f"am_HS1_top_dlt_{det}.gdml"
-        pygeomtools.write_pygeom(reg, gdml_file)
-        files.append(gdml_file)
 
-    metafunc.parametrize("gdml_file", files, ids=lambda p: Path(p).name)
+
+@pytest.fixture(scope="session")
+def gdml_file(request, tmp_path_factory):
+    import pygeomtools
+
+    reg = core.construct(request.param, public_geometry=public_geom)
+    pygeomtools.geometry.check_registry_sanity(reg, reg)
+    path = tmp_path_factory.mktemp("gdml") / "hades.gdml"
+    pygeomtools.write_pygeom(reg, path)
+    return path
