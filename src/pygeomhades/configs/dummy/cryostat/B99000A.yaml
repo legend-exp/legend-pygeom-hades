@@ -7,6 +7,8 @@ cryostat:
 detector:
   name: B99000A
   position_in_mm: 8.0
+foil:
+  thickness_in_mm: 0.025
 holder:
   geometry:
     bottom_cyl:

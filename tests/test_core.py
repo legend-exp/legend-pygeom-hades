@@ -10,6 +10,7 @@ from pyg4ometry import geant4
 
 from pygeomhades.core import construct
 from pygeomhades.metadata import PublicHadesMetadataProxy
+from pygeomhades.solids import SAFETY_GAP_IN_MM
 
 public_geom = os.getenv("LEGEND_METADATA", "") == ""
 
@@ -262,3 +263,40 @@ def test_am_hs1_top_source_x(card: str, x: float):
     pos = reg.physicalVolumeDict["source_collimator_copper"].position.eval()
     assert pos[0] == pytest.approx(x)
     assert pos[1] == pytest.approx(0)
+
+
+@pytest.mark.parametrize(
+    ("detector", "has_foil"), [("B00000B", True), ("V02160B", False)]
+)
+def test_foil(detector: str, has_foil: bool):
+    reg = construct(
+        AttrsDict(
+            {
+                "detector": detector,
+                "campaign": "c1",
+                "measurement": "am_HS6_top_dlt",
+                "daq_settings": {"flashcam": {"card_interface": "efb2"}},
+            }
+        ),
+        public_geometry=public_geom,
+    )
+    pvs = reg.physicalVolumeDict
+    assert ("hpge_foil_mylar" in pvs) == has_foil
+    if not has_foil:
+        return
+
+    # the foil lies between crystal front face and closed end of the wrap
+    foil = pvs["hpge_foil_mylar"]
+    half = foil.logicalVolume.solid.pDz / 2
+    foil_top = foil.position.eval()[2] - half
+    foil_bottom = foil_top + 2 * half
+    wrap = pvs["hpge_wrap_hdpe"]
+    wrap_solid = wrap.logicalVolume.solid
+    wrap_end = wrap.position.eval()[2] + wrap_solid.pZpl[1]
+    crystal_front = foil_bottom + SAFETY_GAP_IN_MM
+
+    meta = (PublicHadesMetadataProxy() if public_geom else HadesMetadata()).hardware
+    top_wall = meta.cryostat[detector].cryostat.top_thickness_in_mm
+    position = meta.cryostat[detector].detector.position_in_mm
+    assert crystal_front == pytest.approx(position - top_wall)
+    assert wrap_end == pytest.approx(foil_top - SAFETY_GAP_IN_MM)

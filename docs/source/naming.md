@@ -26,10 +26,11 @@ the others.
 | `world`                         | vacuum                | world volume                                                       |
 | `lab_air`                       | air                   | laboratory, rotated by 180 deg so that its z axis points down      |
 | `cryostat_wall_aluminium`       | aluminium alloy       | vacuum cryostat, a full cylinder that contains `cryostat_vacuum`   |
-| `cryostat_vacuum`               | vacuum                | inside of the cryostat, holds detector, holder and wrap            |
+| `cryostat_vacuum`               | vacuum                | inside of the cryostat, holds detector, holder, wrap and foil      |
 | _detector name_                 | germanium             | HPGe detector                                                      |
 | `hpge_holder_aluminium`         | aluminium alloy       | detector holder                                                    |
 | `hpge_wrap_hdpe`                | polyethylene (HDPE)   | detector wrap                                                      |
+| `hpge_foil_mylar`               | Mylar                 | foil between detector front face and wrap (BEGe cryostats only)    |
 | `castle_lead`                   | lead                  | lead castle on the static tables                                   |
 | `castle_plate_copper`           | copper                | copper plate between base and top block of the GERDA-era castle    |
 | `castle_bottom_plate_aluminium` | aluminium             | plate on which the castle stands                                   |

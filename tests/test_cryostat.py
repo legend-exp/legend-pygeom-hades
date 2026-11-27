@@ -4,7 +4,12 @@ import pytest
 from dbetto import AttrsDict
 from pyg4ometry import geant4
 
-from pygeomhades.cryostat import make_holder, make_vacuum_cavity, make_wrap
+from pygeomhades.cryostat import (
+    make_foil,
+    make_holder,
+    make_vacuum_cavity,
+    make_wrap,
+)
 from pygeomhades.materials import HadesMaterialRegistry
 from pygeomhades.solids import SAFETY_GAP_IN_MM
 
@@ -57,6 +62,16 @@ def test_make_wrap():
     # a cup longer than the space in the holder is cut at its open end
     wrap_lv = make_wrap(wrap, 45, 98.5, *registries())
     assert max(wrap_lv.solid.pZpl) == 98.5
+
+
+def test_make_foil():
+    reg, _ = registries()
+    foil_lv = make_foil(AttrsDict({"thickness_in_mm": 0.025}), 37.0, reg)
+
+    assert foil_lv.name == "hpge_foil_mylar"
+    assert foil_lv.material.name == "G4_MYLAR"
+    assert foil_lv.solid.pRMax == 37.0
+    assert foil_lv.solid.pDz == 0.025
 
 
 def test_make_holder():
