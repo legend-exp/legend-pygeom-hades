@@ -11,10 +11,10 @@ holder:
   geometry:
     bottom_cyl:
       inner:
-        height_in_mm: 15.9
+        height_in_mm: 111.0
         radius_in_mm: 8.0
       outer:
-        height_in_mm: 25.4
+        height_in_mm: 120.5
         radius_in_mm: 13.0
     cylinder:
       inner:

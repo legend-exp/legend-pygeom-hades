@@ -268,7 +268,7 @@ def make_source_holder(
 
     # the pocket in the top plate extends down to the source position
     z_cryo = source_z + source_holder.top_plate_height_in_mm / 2
-    z_end = source_z + source_holder.top_bottom_height_in_mm
+    z_end = z_cryo + source_holder.bottom_height_in_mm
     sides = [
         (source_holder.top_height_in_mm, r_in, r_out),
         (z_cryo, r_in, r_out),
