@@ -151,8 +151,11 @@ def test_construct(config: AttrsDict, assert_copper_plate: bool):
     assert isinstance(reg, geant4.Registry)
     pygeomtools.geometry.check_registry_sanity(reg, reg)
 
+    pvs = reg.physicalVolumeDict
+    assert pvs["cryostat_vacuum"].motherVolume.name == "cryostat_wall_aluminium"
+
     if assert_copper_plate:
-        assert "castle_plate_copper" in reg.physicalVolumeDict
+        assert pvs["castle_plate_copper"].motherVolume.name == "lab_air"
 
 
 @pytest.mark.parametrize(

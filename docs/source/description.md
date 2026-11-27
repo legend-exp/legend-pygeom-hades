@@ -25,3 +25,29 @@ volume for vertex confinement to simulate the calibration source.
 :::
 
 All volume names are listed in {doc}`naming`.
+
+## Volume hierarchy
+
+A volume that is entirely inside another one is placed in it (as a daughter
+volume). Volumes that sit next to each other are placed in the same mother
+volume:
+
+```
+world
+└── lab_air
+    ├── cryostat_wall_aluminium        full cylinder
+    │   └── cryostat_vacuum            the cryostat walls are the aluminium around it
+    │       ├── hpge_holder_aluminium
+    │       ├── hpge_wrap_hdpe
+    │       └── <detector name>
+    ├── source_holder_pmma, source parts (each source with its own daughters)
+    ├── castle_bottom_plate_aluminium
+    ├── castle_lead
+    └── castle_plate_copper            GERDA-era castle only
+```
+
+Parts that touch in the real setup (e.g. the lead castle standing on the bottom
+plate, or the wrap resting on the crystal) are separated by a gap of 1 µm, and a
+daughter volume is kept 1 µm away from the surface of its mother. Geant4 cannot
+tell on which side of a shared surface a point is, and the gap is far too small
+to change the simulated physics.
